@@ -1,0 +1,11 @@
+target/
+server-data/
+config/db.properties
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.iml
+*.log
+nbproject/private/

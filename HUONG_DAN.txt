@@ -1,0 +1,61 @@
+CHỨC NĂNG LỊCH SỬ VÀ QUẢN TRỊ
+
+Yêu cầu: JDK 24, Maven, MySQL; cấu hình MySQL ở config/db.properties (file riêng, không đưa lên Git).
+
+Chuẩn bị cơ sở dữ liệu trên máy mới:
+1. Chạy src/main/resources/db/registration.sql.
+2. Chạy src/main/resources/db/gameplay.sql.
+3. Chạy src/main/resources/db/history.sql hoặc chạy HistorySchemaSetup.main() trong IDE.
+   history.sql chỉ tạo thêm bảng, không xóa tài khoản hay từ khóa cũ.
+
+4. Nếu chưa có ADMIN: trong cùng kết nối MySQL, đặt @admin_username và @admin_password
+   bằng tên/mật khẩu riêng, rồi chạy src/main/resources/db/admin.sql.
+   Xem README.md để biết câu lệnh; script không đổi tài khoản đã tồn tại.
+5. Trên máy mới, copy config/db.properties.example thành config/db.properties,
+   điền tài khoản MySQL. Chạy server từ thư mục gốc chứa pom.xml.
+
+Khởi động:
+- Chạy ServerMain.main().
+- Mỗi client chạy ClientMain qua JavaFX hoặc mvn javafx:run.
+- USER: tại danh sách phòng bấm "Lịch sử trận đấu". Chọn trận đã kết thúc để
+  xem thời gian, điểm, thứ hạng, người vẽ, từ khóa, đường dẫn ảnh trên server
+  và từng lượt đoán đúng/sai kèm thời gian. Danh sách hiển thị 200 trận gần nhất.
+  Bên phải, chọn vòng trong "Tranh của từng vòng" để xem ảnh PNG được tải từ
+  server qua TCP. Vòng đầu được tải tự động. Nếu tải lỗi, bấm "Tải lại ảnh".
+  Trận cũ cũng xem được ảnh nếu file PNG còn trong server-data/drawings.
+- ADMIN: sau đăng nhập mở thẳng màn hình quản trị. Chọn chủ đề để xem từ khóa;
+  nhập nội dung rồi bấm Thêm hoặc Sửa mục chọn; Xóa mục chọn có xác nhận.
+  Xóa chủ đề sẽ xóa từ khóa thuộc chủ đề đó. Lịch sử đã lưu không bị thay đổi.
+  Mỗi chủ đề cần đủ từ khóa khác nhau cho số người chơi (2–8).
+
+Chơi qua LAN và đưa code lên GitHub:
+- Xem README.md: máy A chạy MySQL + server + client, máy B chạy client kết nối IPv4 máy A.
+- TCP cổng 5555; sửa địa chỉ localhost trong AuthController.java trên máy B.
+- Git bỏ qua target/, server-data/ và config/db.properties.
+- Khi chuyển server, sao lưu cả database và thư mục server-data/drawings.
+
+Phân quyền:
+- Tài khoản đăng ký mới vẫn là USER; dùng tài khoản đã có role ADMIN để quản trị.
+- Người chơi chỉ được đọc lịch sử có chính mình tham gia. Chi tiết trận đang
+  diễn ra bị chặn để không lộ từ khóa.
+
+Lưu dữ liệu:
+- game_match: thời gian bắt đầu/kết thúc (Unix milliseconds), chủ đề, trạng thái.
+- match_player: bản chụp tên người chơi, điểm, thứ hạng, thời gian đoán trung bình.
+- match_round: người vẽ, bản chụp từ khóa, đường dẫn ảnh, thời gian vòng.
+- round_guess: lượt đoán hợp lệ, đúng/sai, thời điểm và số giây từ đầu vòng.
+- Ảnh vẫn ở server-data/drawings/<match-id>/<user-id>.png.
+- Trạng thái: IN_PROGRESS, COMPLETED, ABANDONED (mọi người thoát), ABORTED (lỗi/dừng server).
+- Dữ liệu được cập nhật theo các sự kiện của trận bằng transaction; một lần lưu
+  thất bại sẽ rollback. Nếu lần lưu đầu thất bại, trận không bắt đầu. Nếu MySQL
+  mất kết nối giữa trận, server báo lỗi và thử lưu lại ở sự kiện tiếp theo;
+  nếu MySQL vẫn lỗi khi kết thúc thì kết quả cuối có thể chưa được lưu.
+- Lịch sử chỉ được ghi cho các trận chạy sau khi bổ sung chức năng này.
+- Trường hợp tiến trình bị buộc dừng, bản ghi có thể còn IN_PROGRESS; shutdown
+  thông thường sẽ đánh dấu các trận đang chơi là ABORTED.
+
+Kiểm thử:
+- mvn test: unit test và kiểm thử TCP, không cần MySQL.
+- mvn -Ddrawguess.integration=true test: thêm kiểm thử MySQL. Tự tạo database
+  drawguess_test_<UUID> riêng và xóa sau test; tài khoản DB cần quyền CREATE/DROP DATABASE.
+- mvn -Ddrawguess.ui=true test: thêm kiểm thử giao diện JavaFX; ảnh kiểm tra ở target/qa.
