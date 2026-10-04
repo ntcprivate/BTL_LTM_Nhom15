@@ -10,7 +10,38 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.
 - ADMIN thêm, sửa, xóa chủ đề và từ khóa.
 
-## Chuẩn bị
+## Quy trình làm việc nhóm
+
+`main` là nhánh chứa code chung đã được kiểm tra. Thành viên làm việc trên nhánh riêng và tạo Pull Request (PR) vào `main`; không push trực tiếp lên `main`.
+
+Trước khi bắt đầu một công việc mới, hãy bảo đảm thay đổi đang làm đã được lưu trên nhánh của mình, rồi chạy:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+git switch -c feature/ten-chuc-nang
+```
+
+Tên nhánh mô tả công việc, ví dụ `feature/room-chat`, `fix/history-image` hoặc `docs/setup-guide`. Sau khi sửa code và kiểm thử:
+
+```powershell
+mvn test
+git add .
+git status
+git commit -m "Describe the change"
+git push -u origin feature/ten-chuc-nang
+```
+
+Trước khi commit, kiểm tra không đưa mật khẩu, `config/db.properties`, `target/` hoặc `server-data/` vào Git. Trên GitHub, mở **Compare & pull request**, chọn nhánh đích `main`, ghi rõ phần đã sửa và kết quả kiểm thử, rồi yêu cầu leader `@ntcprivate` duyệt. Nếu cần sửa PR, tiếp tục commit và push lên chính nhánh đó; không cần tạo PR mới.
+
+- **Approve** xác nhận code đã được duyệt; **Merge** mới đưa code vào `main`. Chờ leader kiểm tra và merge, không tự merge PR của mình theo quy trình của nhóm.
+- Với quy tắc **Require approvals: 1**, PR cần ít nhất một approval hợp lệ. Quy tắc này tự nó không giới hạn người duyệt chỉ là leader; collaborator có quyền ghi cũng có thể duyệt PR của người khác. Người tạo PR không thể tự approve PR của mình.
+- Khi bật **Dismiss stale pull request approvals when new commits are pushed**, nếu có commit mới làm thay đổi code trong PR đã được approve nhưng chưa merge, approval cũ bị hủy và cần duyệt lại. Tùy chọn này không tác động tới PR đã merge.
+- Leader nên dùng cùng quy trình cho thay đổi lớn. Việc tài khoản quản trị được bỏ qua quy tắc hay không phụ thuộc cấu hình bảo vệ nhánh trên GitHub.
+
+Sau khi PR được merge, cập nhật bản code chung bằng `git switch main` và `git pull --ff-only origin main` trước khi tạo nhánh cho công việc tiếp theo.
+
+## Cài đặt môi trường
 
 - JDK **24**, Maven và MySQL **8.x**. Kiểm tra `java -version` và `mvn -version` cùng sử dụng JDK 24.
 - Clone repo và mở thư mục chứa `pom.xml`:
