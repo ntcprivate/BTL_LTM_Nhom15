@@ -1,6 +1,7 @@
 package com.nhom15.drawguess.client.view;
 import com.nhom15.drawguess.common.protocol.*;
 import com.nhom15.drawguess.common.protocol.CatalogData.*;
+import com.nhom15.drawguess.client.controller.RoomController;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.Parent;
@@ -94,6 +95,66 @@ class AdminHistoryViewTest {
             } finally { g.dispose(); }
             var bytes=new java.io.ByteArrayOutputStream(); ImageIO.write(image,"png",bytes); return bytes.toByteArray();
         } catch(Exception e) { throw new RuntimeException(e); }
+    }
+    @Test void mainScreensRenderWithTheme() throws Exception {
+        ui(()-> {
+            LoginView login = new LoginView("localhost", 5555);
+            snapshot(page(login), "login.png");
+            snapshot(page(new RegisterView()), "register.png");
+
+            UserInfo user = new UserInfo(1, "người_chơi", "USER", "irises");
+            snapshot(page(new HomeView(user, ()->{}, ()->{}, ()->{}, ()->{})), "home.png");
+            snapshot(page(new AvatarPickerView(user, ()->{}, ()->{})), "avatars.png");
+            RoomListView roomList = new RoomListView(user, ()->{}, ()->{}, ()->{});
+            assertEquals("NGƯỜI_CHƠI", ((Label) roomList.lookup(".user-profile-name")).getText());
+            roomList.updateRooms(List.of(
+                    new RoomInfo(1, RoomStatus.WAITING, List.of()),
+                    new RoomInfo(2, RoomStatus.READY_CHECK, List.of(
+                            new PlayerInfo(1, "người_chơi", true, true, "irises"),
+                            new PlayerInfo(2, "bạn_chơi", false, true, "almond-blossoms"))),
+                    new RoomInfo(3, RoomStatus.PLAYING, List.of(
+                            new PlayerInfo(3, "họa_sĩ", true, true)))));
+            snapshot(page(roomList), "rooms.png");
+
+            LobbyView lobby = new LobbyView(1, ()->{}, ()->{}, ()->{});
+            lobby.update(new RoomInfo(2, RoomStatus.READY_CHECK, List.of(
+                    new PlayerInfo(1, "người_chơi", true, true, "irises"),
+                    new PlayerInfo(2, "bạn_chơi", false, true, "almond-blossoms"),
+                    new PlayerInfo(3, "người_mất_kết_nối", false, false, "rhone-night"))));
+            assertTrue(((Label) lobby.lookup(".player-name")).getText().startsWith("NGƯỜI_CHƠI"));
+            snapshot(page(lobby), "lobby.png");
+
+            GameView game = new GameView(()->{}, ()->{}, ()->{}, ()->{});
+            game.showDrawing(new DrawingPrompt(UUID.randomUUID().toString(), 2,
+                    "Động vật", "Con mèo", 60));
+            game.updateScores(List.of(
+                    new ScoreEntry(1, "người_chơi", 4, 1, 2.1, true),
+                    new ScoreEntry(2, "bạn_chơi", 2, 2, 3.4, true)));
+            snapshot(page(game), "game-drawing.png");
+        });
+    }
+    @Test void profileCardOpensAvatarPicker() throws Exception {
+        ui(() -> {
+            UserInfo user = new UserInfo(1, "người_chơi", "USER", "irises");
+            javafx.scene.layout.StackPane root = new javafx.scene.layout.StackPane();
+            RoomController controller = new RoomController(root, user, message -> {}, () -> {});
+            controller.show();
+            Button profile = (Button) root.lookupAll(".button").stream()
+                    .filter(node -> "Hồ sơ & avatar".equals(((Button) node).getAccessibleText()))
+                    .findFirst().orElseThrow();
+            profile.fire();
+            assertInstanceOf(AvatarPickerView.class, root.getChildren().getFirst());
+        });
+    }
+    private static Parent page(Parent content) {
+        javafx.scene.layout.StackPane page = new javafx.scene.layout.StackPane();
+        page.getStyleClass().add("app-screen");
+        UiTheme.apply(page);
+        AnimatedStarryBackdrop backdrop = new AnimatedStarryBackdrop(page);
+        javafx.scene.layout.StackPane host = new javafx.scene.layout.StackPane(content);
+        host.setPadding(new javafx.geometry.Insets(24));
+        page.getChildren().addAll(backdrop, host);
+        return page;
     }
     @Test void changingRoundIgnoresOldResponsesAndMissingImageCanBeRetried() throws Exception {
         ui(()-> {

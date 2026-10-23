@@ -16,6 +16,9 @@ public enum MessageType {
     LOGIN_SUCCESS,
     LOGIN_FAILED,
     LOGOUT,
+    UPDATE_AVATAR,
+    AVATAR_UPDATED,
+    AVATAR_FAILED,
     ACTION_SUCCESS,
     ACTION_FAILED,
 

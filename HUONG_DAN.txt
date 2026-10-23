@@ -4,6 +4,8 @@ Yêu cầu: JDK 24, Maven, MySQL; cấu hình MySQL ở config/db.properties (fi
 
 Chuẩn bị cơ sở dữ liệu trên máy mới:
 1. Chạy src/main/resources/db/registration.sql.
+   Nếu database đã tồn tại từ phiên bản cũ, vẫn chạy lại file này một lần để
+   thêm avatar_key. Script giữ nguyên tài khoản và gán avatar mặc định.
 2. Chạy src/main/resources/db/gameplay.sql.
 3. Chạy src/main/resources/db/history.sql hoặc chạy HistorySchemaSetup.main() trong IDE.
    history.sql chỉ tạo thêm bảng, không xóa tài khoản hay từ khóa cũ.
@@ -13,11 +15,18 @@ Chuẩn bị cơ sở dữ liệu trên máy mới:
    Xem README.md để biết câu lệnh; script không đổi tài khoản đã tồn tại.
 5. Trên máy mới, copy config/db.properties.example thành config/db.properties,
    điền tài khoản MySQL. Chạy server từ thư mục gốc chứa pom.xml.
+6. Client có thể nhập địa chỉ server và cổng ngay trên màn hình đăng nhập.
+   Muốn đặt sẵn giá trị, copy config/client.properties.example thành
+   config/client.properties rồi sửa server.host và server.port.
 
 Khởi động:
 - Chạy ServerMain.main().
 - Mỗi client chạy ClientMain qua JavaFX hoặc mvn javafx:run.
-- USER: tại danh sách phòng bấm "Lịch sử trận đấu". Chọn trận đã kết thúc để
+- USER: sau đăng nhập mở trang chủ. Có thể chọn "Vào phòng chơi", "Lịch sử
+  trận đấu", "Hồ sơ & avatar" hoặc "Đăng xuất". Ở hồ sơ, chọn một trong 9
+  tranh Van Gogh rồi bấm "Lưu avatar"; avatar được lưu vào MySQL và hiển thị
+  tại danh sách phòng và các ô người chơi trong phòng chờ.
+- Trong "Lịch sử trận đấu", chọn trận đã kết thúc để
   xem thời gian, điểm, thứ hạng, người vẽ, từ khóa, đường dẫn ảnh trên server
   và từng lượt đoán đúng/sai kèm thời gian. Danh sách hiển thị 200 trận gần nhất.
   Bên phải, chọn vòng trong "Tranh của từng vòng" để xem ảnh PNG được tải từ
@@ -30,8 +39,8 @@ Khởi động:
 
 Chơi qua LAN và đưa code lên GitHub:
 - Xem README.md: máy A chạy MySQL + server + client, máy B chạy client kết nối IPv4 máy A.
-- TCP cổng 5555; sửa địa chỉ localhost trong AuthController.java trên máy B.
-- Git bỏ qua target/, server-data/ và config/db.properties.
+- TCP cổng 5555; máy B nhập IPv4 máy A trên màn hình đăng nhập.
+- Git bỏ qua target/, server-data/, config/db.properties và config/client.properties.
 - Khi chuyển server, sao lưu cả database và thư mục server-data/drawings.
 
 Phân quyền:

@@ -3,6 +3,9 @@ package com.nhom15.drawguess.client.controller;
 import com.nhom15.drawguess.client.view.LobbyView;
 import com.nhom15.drawguess.client.view.HistoryView;
 import com.nhom15.drawguess.client.view.RoomListView;
+import com.nhom15.drawguess.client.view.UiTheme;
+import com.nhom15.drawguess.client.view.HomeView;
+import com.nhom15.drawguess.client.view.AvatarPickerView;
 import com.nhom15.drawguess.common.protocol.*;
 import javafx.scene.layout.StackPane;
 
@@ -12,9 +15,11 @@ import java.util.function.Consumer;
 // Mọi phương thức của controller này được gọi trên JavaFX Application Thread.
 public class RoomController {
     private final StackPane root;
-    private final UserInfo user;
+    private UserInfo user;
     private final RoomListView roomList;
     private final LobbyView lobby;
+    private final HomeView home;
+    private final AvatarPickerView avatarPicker;
     private final Consumer<Message> send;
     private final Runnable logout;
     private final HistoryView history;
@@ -28,20 +33,46 @@ public class RoomController {
         this.user = user;
         this.send = send;
         this.logout = logout;
-        roomList = new RoomListView(user, this::join, this::refresh, logout);
+        home = new HomeView(user, this::showRooms, this::showHistory, this::showAvatar, logout);
+        avatarPicker = new AvatarPickerView(user, this::saveAvatar, this::show);
+        roomList = new RoomListView(user, this::join, this::refresh, this::show);
         history = new HistoryView(send, this::show);
-        roomList.setOnHistory(() -> {
-            viewingHistory = true;
-            root.getChildren().setAll(history);
-            send.accept(new Message(MessageType.GET_HISTORY));
-        });
         lobby = new LobbyView(user.getId(), this::toggleReady, this::leave, logout);
     }
 
     public void show() {
         viewingHistory = false;
-        root.getChildren().setAll(roomList);
+        UiTheme.show(root, home);
+    }
+
+    private void showRooms() {
+        viewingHistory = false;
+        UiTheme.show(root, roomList);
         refresh();
+    }
+
+    private void showHistory() {
+        viewingHistory = true;
+        UiTheme.show(root, history);
+        send.accept(new Message(MessageType.GET_HISTORY));
+    }
+
+    private void showAvatar() {
+        viewingHistory = false;
+        avatarPicker.updateUser(user);
+        avatarPicker.showInfo("Chọn một bức tranh làm hình đại diện của bạn.");
+        UiTheme.show(root, avatarPicker);
+    }
+
+    private void saveAvatar() {
+        String selected = avatarPicker.getSelectedAvatar();
+        if (selected.equals(user.getAvatarKey())) {
+            avatarPicker.showInfo("Đây đã là avatar hiện tại của bạn.");
+            return;
+        }
+        avatarPicker.setBusy(true);
+        avatarPicker.showInfo("Đang lưu avatar...");
+        send.accept(new Message(MessageType.UPDATE_AVATAR, selected));
     }
 
     private void refresh() {
@@ -78,6 +109,8 @@ public class RoomController {
 
     public void setLoggingOut() {
         loggingOut = true;
+        home.setBusy(true);
+        avatarPicker.setBusy(true);
         roomList.setBusy(true);
         lobby.setBusy(true);
         roomList.showMessage("Đang đăng xuất...");
@@ -87,6 +120,26 @@ public class RoomController {
 
     public void handleMessage(Message message) {
         if (loggingOut) { return; }
+        if (message.getType() == MessageType.AVATAR_UPDATED) {
+            if (message.getData() instanceof UserInfo updated && updated.getId() == user.getId()) {
+                user = updated;
+                home.updateUser(updated);
+                roomList.updateUser(updated);
+                avatarPicker.updateUser(updated);
+                avatarPicker.setBusy(false);
+                avatarPicker.showMessage("Đã lưu avatar vào tài khoản.", true);
+            }
+            return;
+        }
+        if (message.getType() == MessageType.AVATAR_FAILED) {
+            avatarPicker.setBusy(false);
+            avatarPicker.showMessage(switch (String.valueOf(message.getData())) {
+                case "INVALID_AVATAR" -> "Avatar không hợp lệ. Hãy chọn lại.";
+                case "DATABASE_ERROR" -> "Không lưu được avatar. Hãy kiểm tra MySQL và registration.sql.";
+                default -> "Không thể cập nhật avatar lúc này.";
+            }, false);
+            return;
+        }
         if (message.getType() == MessageType.HISTORY_LIST || message.getType() == MessageType.HISTORY_DETAIL
                 || message.getType() == MessageType.HISTORY_IMAGE || message.getType() == MessageType.HISTORY_IMAGE_FAILED
                 || message.getType() == MessageType.HISTORY_FAILED) {
@@ -118,7 +171,7 @@ public class RoomController {
                 if (message.getData() instanceof RoomInfo room) {
                     currentRoom = room;
                     lobby.update(room);
-                    root.getChildren().setAll(lobby);
+                    UiTheme.show(root, lobby);
                 }
             }
             case ROOM_INFO, READY_STATUS, GAME_STARTING, START_GAME -> {
@@ -132,7 +185,7 @@ public class RoomController {
                 if ("LEAVE_ROOM".equals(message.getData())) {
                     if (game != null) { game.close(); game = null; }
                     currentRoom = null;
-                    show();
+                    showRooms();
                 }
             }
             case JOIN_FAILED, ACTION_FAILED -> {
@@ -157,8 +210,8 @@ public class RoomController {
 
     private void returnToLobby() {
         if (game != null) { game.close(); game = null; }
-        if (currentRoom == null) { show(); }
-        else { lobby.update(currentRoom); root.getChildren().setAll(lobby); }
+        if (currentRoom == null) { showRooms(); }
+        else { lobby.update(currentRoom); UiTheme.show(root, lobby); }
     }
 
     public void close() {

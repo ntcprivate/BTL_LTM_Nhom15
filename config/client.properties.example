@@ -1,0 +1,4 @@
+# Copy to config/client.properties if you want a default server for this machine.
+# You can still change these values on the login screen.
+server.host=localhost
+server.port=5555

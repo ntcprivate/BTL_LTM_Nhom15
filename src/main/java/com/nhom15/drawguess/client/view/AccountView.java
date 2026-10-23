@@ -12,14 +12,22 @@ public class AccountView extends VBox {
     private final Label statusLabel = new Label("Đăng nhập thành công.");
 
     public AccountView(UserInfo user, Runnable logout) {
+        UiTheme.apply(this);
+        getStyleClass().add("auth-card");
         setAlignment(Pos.CENTER);
         setSpacing(16);
         setPadding(new Insets(30));
+        setMaxWidth(480);
+        setMaxHeight(USE_PREF_SIZE);
         Label welcome = new Label("Xin chào, " + user.getUsername());
-        welcome.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        welcome.getStyleClass().add("page-title");
+        ArtworkCard painting = new ArtworkCard(
+                "/images/The-Langlois-Bridge-at-Arles-1888.jpg", "The Langlois Bridge at Arles • 1888", 420, 132);
         String role = "ADMIN".equals(user.getRole()) ? "Quản trị viên" : "Người chơi";
         logoutButton.setOnAction(event -> logout.run());
-        getChildren().addAll(welcome, new Label("Vai trò: " + role), statusLabel, logoutButton);
+        logoutButton.getStyleClass().add("danger-button");
+        UiTheme.status(statusLabel, "success");
+        getChildren().addAll(painting, welcome, new Label("Vai trò: " + role), statusLabel, logoutButton);
     }
 
     public void setLoggingOut() {

@@ -13,6 +13,11 @@ import java.util.function.Consumer;
 public class HistoryView extends VBox {
     private final ListView<HistoryData.Summary> matches=new ListView<>();
     private final Label details=new Label();
+    private final Label overviewTitle = new Label("Chọn một trận để xem kết quả");
+    private final Label overviewMeta = new Label();
+    private final VBox rankingCards = new VBox(8);
+    private final VBox roundCards = new VBox(8);
+    private final VBox guessCards = new VBox(7);
     private final Label status=new Label();
     private final ComboBox<HistoryData.Round> rounds = new ComboBox<>();
     private final ImageView drawing = new ImageView();
@@ -23,15 +28,46 @@ public class HistoryView extends VBox {
     private String selectedId;
     public HistoryView(Consumer<Message> send,Runnable back) {
         this.send = send;
-        setSpacing(12); setPadding(new Insets(24));
+        UiTheme.apply(this);
+        getStyleClass().add("content-card");
+        setSpacing(14); setPadding(new Insets(22));
+        setMaxWidth(Double.MAX_VALUE); setMaxHeight(Double.MAX_VALUE);
         Button refresh=new Button("Làm mới"); Button returnButton=new Button("Về danh sách phòng");
-        refresh.setOnAction(e -> { clearSelection(); status.setText("Đang tải..."); send.accept(new Message(MessageType.GET_HISTORY)); });
+        refresh.getStyleClass().add("secondary-button");
+        returnButton.getStyleClass().add("ghost-button");
+        refresh.setOnAction(e -> { clearSelection(); status.setText("Đang tải..."); UiTheme.status(status,"info"); send.accept(new Message(MessageType.GET_HISTORY)); });
         returnButton.setOnAction(e -> { clearSelection(); back.run(); });
-        matches.setMinHeight(120); matches.setPrefHeight(140); details.setWrapText(true); details.setMaxWidth(Double.MAX_VALUE);
-        details.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
-        details.setPadding(new Insets(14)); details.setStyle("-fx-font-size: 14px;");
+        matches.setMinHeight(150); matches.setPrefHeight(180);
+        matches.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(HistoryData.Summary match, boolean empty) {
+                super.updateItem(match, empty);
+                if (empty || match == null) { setText(null); setGraphic(null); return; }
+                Label category = new Label(match.category()); category.getStyleClass().add("history-match-category");
+                Label time = new Label(HistoryData.formatTime(match.startedAt())); time.getStyleClass().add("history-match-time");
+                VBox identity = new VBox(3, category, time);
+                Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+                Label state = new Label(HistoryData.statusLabel(match.status()));
+                state.getStyleClass().addAll("history-state", "history-state-" + match.status().toLowerCase());
+                Label score = new Label(match.score() + " điểm"); score.getStyleClass().add("history-score");
+                Label rank = new Label("Hạng " + match.rank()); rank.getStyleClass().add("history-rank");
+                HBox row = new HBox(12, identity, spacer, state, score, rank);
+                row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                row.getStyleClass().add("history-match-row");
+                setText(null); setGraphic(row);
+            }
+        });
+        details.setWrapText(true); details.setMaxWidth(Double.MAX_VALUE);
+        details.setManaged(false); details.setVisible(false);
         details.getStyleClass().add("history-details");
-        ScrollPane detailScroll=new ScrollPane(details); detailScroll.setFitToWidth(true);
+        overviewTitle.getStyleClass().add("section-title");
+        overviewMeta.getStyleClass().add("subtle-text");
+        overviewMeta.setWrapText(true);
+        Label rankingTitle = new Label("Bảng xếp hạng"); rankingTitle.getStyleClass().add("history-block-title");
+        Label roundsTitle = new Label("Các vòng đã chơi"); roundsTitle.getStyleClass().add("history-block-title");
+        VBox overview = new VBox(13, overviewTitle, overviewMeta, rankingTitle, rankingCards,
+                new Separator(), roundsTitle, roundCards, details);
+        overview.getStyleClass().add("history-overview");
+        ScrollPane detailScroll=new ScrollPane(overview); detailScroll.setFitToWidth(true);
         rounds.setMaxWidth(Double.MAX_VALUE);
         rounds.setPromptText("Chọn vòng để xem tranh");
         rounds.getStyleClass().add("history-rounds");
@@ -50,7 +86,14 @@ public class HistoryView extends VBox {
         imageStatus.getStyleClass().add("history-image-status");
         reloadImage.setDisable(true);
         reloadImage.setOnAction(e -> loadImage());
-        VBox preview = new VBox(12, new Label("Tranh của từng vòng"), rounds, roundInfo, imageStatus, reloadImage, drawing);
+        Label previewTitle = new Label("Tranh của từng vòng");
+        previewTitle.getStyleClass().add("section-title");
+        Label guessesTitle = new Label("Lượt đoán");
+        guessesTitle.getStyleClass().add("history-block-title");
+        reloadImage.getStyleClass().add("secondary-button");
+        roundInfo.getStyleClass().add("round-summary");
+        VBox preview = new VBox(12, previewTitle, rounds, roundInfo, imageStatus, reloadImage,
+                drawing, guessesTitle, guessCards);
         preview.setPadding(new Insets(14));
         ScrollPane imageScroll = new ScrollPane(preview);
         imageScroll.setFitToWidth(true);
@@ -61,17 +104,34 @@ public class HistoryView extends VBox {
                 () -> Math.max(180, Math.min(500, imageScroll.getViewportBounds().getHeight() - 200)),
                 imageScroll.viewportBoundsProperty()));
         SplitPane content = new SplitPane(detailScroll, imageScroll);
-        content.setDividerPositions(0.48);
+        content.setDividerPositions(0.52);
         VBox.setVgrow(content, Priority.ALWAYS);
         matches.getSelectionModel().selectedItemProperty().addListener((o,old,m) -> {
             clearSelection(); selectedId=m==null ? null : m.id();
-            if(m!=null) { status.setText("Đang tải chi tiết..."); send.accept(new Message(MessageType.GET_HISTORY_DETAIL,m.id())); }
+            if(m!=null) { status.setText("Đang tải chi tiết..."); UiTheme.status(status,"info"); send.accept(new Message(MessageType.GET_HISTORY_DETAIL,m.id())); }
         });
-        getChildren().addAll(new Label("Lịch sử trận đấu — 200 trận gần nhất"),new HBox(12,refresh,returnButton),matches,status,content);
+        Label title = new Label("Lịch sử trận đấu");
+        title.getStyleClass().add("page-title");
+        Label subtitle = new Label("Xem lại kết quả và tranh của 200 trận gần nhất");
+        subtitle.getStyleClass().add("subtle-text");
+        VBox heading = new VBox(3, title, subtitle);
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        ArtworkCard painting = new ArtworkCard(
+                "/images/Landscape-from-Saint-Remy-1889.jpg", "Landscape from Saint-Rémy • 1889", 300, 82);
+        HBox header = new HBox(16, heading, headerSpacer, painting);
+        header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        UiTheme.status(status, "info");
+        getChildren().addAll(header, new HBox(12,refresh,returnButton),matches,status,content);
     }
     private void clearSelection() {
         selectedId = null;
         details.setText("");
+        overviewTitle.setText("Chọn một trận để xem kết quả");
+        overviewMeta.setText("");
+        rankingCards.getChildren().clear();
+        roundCards.getChildren().clear();
+        guessCards.getChildren().clear();
         rounds.getItems().clear();
         rounds.setValue(null);
         drawing.setImage(null);
@@ -84,7 +144,7 @@ public class HistoryView extends VBox {
         HistoryData.Round r = rounds.getValue();
         reloadImage.setDisable(true);
         if (selectedId == null || r == null) { return; }
-        roundInfo.setText("Người vẽ: " + r.drawer() + "\nTừ khóa: " + r.word());
+        renderRound(r);
         if (r.imagePath() == null || r.imagePath().isBlank()) {
             imageStatus.setText("Vòng này chưa có ảnh được lưu.");
             return;
@@ -96,6 +156,61 @@ public class HistoryView extends VBox {
         return selectedId != null && Objects.equals(selectedId, id)
                 && rounds.getValue() != null && rounds.getValue().index() == round;
     }
+
+    private void renderOverview(HistoryData.Detail detail) {
+        overviewTitle.setText(String.format("Phòng %03d  •  %s", detail.roomId(), detail.category()));
+        overviewMeta.setText(HistoryData.statusLabel(detail.status()) + "   •   "
+                + HistoryData.formatTime(detail.startedAt()) + " → " + HistoryData.formatTime(detail.endedAt()));
+        rankingCards.getChildren().setAll(detail.players().stream().map(player -> {
+            Label rank = new Label(String.valueOf(player.getRank())); rank.getStyleClass().add("ranking-position");
+            Label name = new Label(player.getUsername()); name.getStyleClass().add("ranking-name");
+            String average = Double.isFinite(player.getAverageGuessTime())
+                    ? String.format("Trung bình %.2f giây", player.getAverageGuessTime()) : "Chưa đoán đúng";
+            Label averageTime = new Label(average); averageTime.getStyleClass().add("ranking-meta");
+            VBox identity = new VBox(2, name, averageTime);
+            Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+            Label score = new Label(player.getScore() + " điểm"); score.getStyleClass().add("ranking-score");
+            HBox card = new HBox(11, rank, identity, spacer, score);
+            card.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            card.getStyleClass().add("ranking-card");
+            return card;
+        }).toList());
+        roundCards.getChildren().setAll(detail.rounds().stream().map(round -> {
+            Label number = new Label("V" + (round.index() + 1)); number.getStyleClass().add("round-number");
+            Label drawer = new Label(round.drawer()); drawer.getStyleClass().add("round-drawer");
+            Label word = new Label("Từ khóa: " + round.word()); word.getStyleClass().add("round-word");
+            VBox text = new VBox(2, drawer, word);
+            Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+            Label guesses = new Label(round.guesses().size() + " lượt đoán"); guesses.getStyleClass().add("round-count");
+            HBox card = new HBox(11, number, text, spacer, guesses);
+            card.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            card.getStyleClass().add("round-card");
+            return card;
+        }).toList());
+    }
+
+    private void renderRound(HistoryData.Round round) {
+        roundInfo.setText("Vòng " + (round.index() + 1) + "   •   Người vẽ: " + round.drawer()
+                + "   •   Từ khóa: " + round.word());
+        guessCards.getChildren().setAll(round.guesses().stream().map(guess -> {
+            Label player = new Label(guess.username()); player.getStyleClass().add("guess-player");
+            Label answer = new Label(guess.answer()); answer.getStyleClass().add("guess-answer");
+            Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+            Label result = new Label(guess.correct() ? "✓ Đúng" : "Sai");
+            result.getStyleClass().addAll("guess-result", guess.correct() ? "guess-correct" : "guess-wrong");
+            Label elapsed = new Label(String.format("%.2f giây", guess.elapsedSeconds()));
+            elapsed.getStyleClass().add("guess-time");
+            HBox card = new HBox(8, player, answer, spacer, elapsed, result);
+            card.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            card.getStyleClass().add("guess-card");
+            return card;
+        }).toList());
+        if (round.guesses().isEmpty()) {
+            Label empty = new Label("Chưa có lượt đoán trong vòng này.");
+            empty.getStyleClass().add("subtle-text");
+            guessCards.getChildren().setAll(empty);
+        }
+    }
     public void handleMessage(Message m) {
         switch(m.getType()) {
             case HISTORY_LIST -> {
@@ -103,6 +218,7 @@ public class HistoryView extends VBox {
                     clearSelection();
                     matches.getItems().setAll(rows.stream().map(HistoryData.Summary.class::cast).toList());
                     status.setText(rows.isEmpty() ? "Bạn chưa có trận đấu nào." : "Chọn một trận đã kết thúc để xem chi tiết.");
+                    UiTheme.status(status,"info");
                 }
             }
             case HISTORY_DETAIL -> {
@@ -113,7 +229,8 @@ public class HistoryView extends VBox {
                         text.append("\nVÒNG ").append(r.index()+1).append(" — Người vẽ: ").append(r.drawer()).append("\nTừ khóa: ").append(r.word()).append("\nẢnh trên server: ").append(r.imagePath()==null ? "Chưa gửi ảnh" : r.imagePath()).append("\nBắt đầu: ").append(time(r.startedAt())).append(" | Kết thúc: ").append(time(r.endedAt())).append("\n");
                         for(HistoryData.Guess g:r.guesses()) text.append(time(g.at())).append(" | ").append(g.username()).append(": ").append(g.answer()).append(g.correct() ? " — Đúng" : " — Sai").append(String.format(" (%.2f giây)",g.elapsedSeconds())).append("\n");
                     }
-                    details.setText(text.toString()); status.setText("Đã tải kết quả.");
+                    details.setText(text.toString()); renderOverview(d);
+                    status.setText("Đã tải kết quả."); UiTheme.status(status,"success");
                     rounds.getItems().setAll(d.rounds());
                     rounds.getSelectionModel().selectFirst();
                 }
@@ -143,7 +260,7 @@ public class HistoryView extends VBox {
                     });
                 }
             }
-            case HISTORY_FAILED -> status.setText("NOT_FOUND_OR_UNFINISHED".equals(m.getData()) ? "Trận chưa kết thúc hoặc không thuộc lịch sử của bạn." : "Không tải/lưu được lịch sử. Kiểm tra MySQL và chạy history.sql.");
+            case HISTORY_FAILED -> { status.setText("NOT_FOUND_OR_UNFINISHED".equals(m.getData()) ? "Trận chưa kết thúc hoặc không thuộc lịch sử của bạn." : "Không tải/lưu được lịch sử. Kiểm tra MySQL và chạy history.sql."); UiTheme.status(status,"error"); }
             default -> { }
         }
     }

@@ -5,6 +5,8 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 ## Chức năng
 
 - Đăng ký, đăng nhập; phân quyền USER và ADMIN.
+- Trang chủ sau đăng nhập với lối tắt vào phòng, lịch sử và hồ sơ.
+- Chọn avatar từ 9 tranh Van Gogh; avatar được lưu theo tài khoản và hiển thị trong phòng chờ.
 - Vào phòng, chọn chủ đề, sẵn sàng, vẽ và đoán từ, tính điểm và xếp hạng.
 - Lịch sử trận: thời gian, người tham gia, điểm, thứ hạng, từng vòng và các lượt đoán.
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.
@@ -60,7 +62,7 @@ Trong MySQL Workbench, mở và chạy lần lượt:
 3. `src/main/resources/db/history.sql`: các bảng lịch sử.
 4. `src/main/resources/db/admin.sql`: tạo ADMIN theo hướng dẫn dưới đây.
 
-Các script tạo bảng dùng `IF NOT EXISTS`; không xóa dữ liệu đang có. Chúng không tự nâng cấp cấu trúc bảng cũ khác với cấu trúc hiện tại.
+Các script tạo bảng dùng `IF NOT EXISTS`; không xóa dữ liệu đang có. Riêng `registration.sql` tự thêm cột `avatar_key` nếu bảng tài khoản cũ chưa có cột này. Vì vậy, sau khi cập nhật phiên bản có avatar, hãy chạy lại `registration.sql` một lần trên database hiện có; tài khoản cũ được giữ nguyên và nhận avatar mặc định.
 
 ### Tạo tài khoản ADMIN
 
@@ -85,6 +87,18 @@ Mở `config/db.properties`, điền `db.user` và `db.password` theo MySQL trê
 
 Cũng có thể dùng biến môi trường `DRAWGUESS_DB_URL`, `DRAWGUESS_DB_USER`, `DRAWGUESS_DB_PASSWORD`; chúng được ưu tiên hơn file cấu hình. Ứng dụng không tự đọc `.env`. Nếu không cấu hình, mặc định là MySQL localhost:3306, database `drawguess_db`, user `root`, mật khẩu rỗng.
 
+### Cấu hình địa chỉ server cho client
+
+Màn hình đăng nhập có ô **Địa chỉ server** và **Cổng**. Khi server và client chạy trên cùng máy, dùng `localhost` và `5555`. Khi chơi qua LAN, nhập IPv4 của máy chạy server.
+
+Để đặt giá trị mặc định riêng cho một máy, chạy:
+
+```powershell
+Copy-Item config/client.properties.example config/client.properties
+```
+
+Sau đó sửa `server.host` và `server.port` trong `config/client.properties`. File này được Git bỏ qua. Có thể dùng biến môi trường `DRAWGUESS_SERVER_HOST` và `DRAWGUESS_SERVER_PORT`; chúng được ưu tiên hơn file cấu hình. Người dùng vẫn có thể thay đổi giá trị trên màn hình đăng nhập trước khi kết nối.
+
 ## Chạy thử
 
 ```powershell
@@ -100,22 +114,22 @@ mvn javafx:run
 
 3. Mở thêm terminal, chạy client thứ hai bằng cùng lệnh. Đăng nhập hai tài khoản USER khác nhau, vào cùng phòng, chọn chủ đề và cả hai bấm sẵn sàng. Chủ đề cần đủ từ khác nhau cho số người tham gia.
 
-ADMIN đăng nhập sẽ mở màn hình quản trị. USER mở “Lịch sử trận đấu” từ danh sách phòng, chọn trận đã kết thúc và vòng để xem tranh, điểm và lượt đoán.
+ADMIN đăng nhập sẽ mở màn hình quản trị. USER đăng nhập sẽ vào trang chủ. Tại đây có thể vào danh sách phòng, mở lịch sử trận hoặc chọn “Hồ sơ & avatar”. Chọn một tranh, bấm **Lưu avatar**, rồi vào phòng để thấy avatar của mình và những người chơi khác.
 
 ## Chơi trên hai máy trong LAN
 
 Máy A có thể chạy **MySQL + server + một client**. Máy B chỉ cần JDK/Maven và client. Hai máy kết nối cùng mạng; chỉ máy A chạy server.
 
 1. Trên máy A, dùng `ipconfig` để lấy IPv4 của card Wi-Fi/Ethernet đang dùng, ví dụ `192.168.1.10`.
-2. Client trên máy A giữ `localhost`. Trong bản code trên máy B, mở `src/main/java/com/nhom15/drawguess/client/controller/AuthController.java`, tìm `tcpClient.connect("localhost", 5555)` và thay `localhost` bằng IPv4 máy A.
+2. Client trên máy A giữ `localhost`. Trên màn hình đăng nhập của máy B, nhập IPv4 máy A vào ô **Địa chỉ server** và giữ cổng `5555`.
 3. Cho phép Java/server hoặc TCP cổng 5555 qua Windows Firewall trên máy A cho mạng Private. Chạy server và hai client.
 4. Trên máy B, có thể kiểm tra kết nối bằng `Test-NetConnection 192.168.1.10 -Port 5555`.
 
-Client hiện dùng địa chỉ server trong code, chưa có ô nhập IP. Không cần mở cổng MySQL cho máy B. Nếu IP máy A thay đổi, cập nhật lại địa chỉ client máy B.
+Không cần mở cổng MySQL cho máy B. Nếu IP máy A thay đổi, nhập địa chỉ mới trên màn hình đăng nhập hoặc cập nhật `config/client.properties` của máy B.
 
 ## Lưu dữ liệu và ảnh
 
-MySQL lưu trong `user_account`, `category`, `word`, `game_match`, `match_player`, `match_round`, `round_guess`. Lịch sử lưu tên và từ khóa tại thời điểm chơi nên thao tác quản trị không đổi nội dung trận cũ.
+MySQL lưu trong `user_account`, `category`, `word`, `game_match`, `match_player`, `match_round`, `round_guess`. Cột `user_account.avatar_key` lưu khóa của tranh đại diện. Lịch sử lưu tên và từ khóa tại thời điểm chơi nên thao tác quản trị không đổi nội dung trận cũ.
 
 Ảnh nằm trên máy server tại `server-data/drawings/<match-id>/<user-id>.png`. Giữ nguyên thư mục này để xem lại tranh; khi chuyển server, sao lưu cả database và thư mục ảnh. Repo không chứa tài khoản thử, dữ liệu trận hoặc ảnh chơi thử. Các phòng đang hoạt động không được khôi phục sau khi khởi động lại server.
 

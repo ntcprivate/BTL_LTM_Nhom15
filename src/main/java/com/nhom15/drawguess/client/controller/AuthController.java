@@ -1,9 +1,11 @@
 package com.nhom15.drawguess.client.controller;
 
+import com.nhom15.drawguess.client.config.ClientConfig;
 import com.nhom15.drawguess.client.network.TCPClient;
 import com.nhom15.drawguess.client.view.AdminView;
 import com.nhom15.drawguess.client.view.LoginView;
 import com.nhom15.drawguess.client.view.RegisterView;
+import com.nhom15.drawguess.client.view.UiTheme;
 import com.nhom15.drawguess.common.protocol.LoginRequest;
 import com.nhom15.drawguess.common.protocol.Message;
 import com.nhom15.drawguess.common.protocol.MessageType;
@@ -14,7 +16,7 @@ import javafx.scene.layout.StackPane;
 
 public class AuthController {
     private final StackPane root;
-    private final LoginView loginView = new LoginView();
+    private final LoginView loginView;
     private final RegisterView registerView = new RegisterView();
     private final TCPClient tcpClient;
     private AdminView accountView;
@@ -25,17 +27,19 @@ public class AuthController {
     public AuthController(StackPane root, TCPClient tcpClient) {
         this.root = root;
         this.tcpClient = tcpClient;
+        ClientConfig config = ClientConfig.load();
+        loginView = new LoginView(config.host(), config.port());
         loginView.setOnLogin(this::login);
         loginView.setOnRegister(() -> {
             loginView.clearPassword();
-            root.getChildren().setAll(registerView);
+            UiTheme.show(root, registerView);
         });
         registerView.setOnRegister(this::register);
         registerView.setOnLogin(() -> {
             registerView.clearPasswords();
             showLogin("Nhập tài khoản để đăng nhập.", true);
         });
-        root.getChildren().setAll(loginView);
+        UiTheme.show(root, loginView);
     }
 
     private String validate(String username, String password) {
@@ -52,18 +56,28 @@ public class AuthController {
         String username = loginView.getUsername();
         String password = loginView.getPassword();
         String error = validate(username, password);
+        ClientConfig server = null;
+        if (error == null) {
+            try {
+                server = ClientConfig.fromInput(loginView.getServerHost(), loginView.getServerPort());
+            } catch (IllegalArgumentException e) {
+                error = e.getMessage();
+            }
+        }
         if (error != null) {
             loginView.showMessage(error, false);
             return;
         }
         loginView.setBusy(true);
         loginView.showMessage("Đang đăng nhập...", true);
+        ClientConfig targetServer = server;
         startNetworkThread("Login-Network", () -> {
             boolean authenticated = false;
             boolean loggedOut = false;
             Message response = null;
             try {
-                response = request(new Message(MessageType.LOGIN, new LoginRequest(username, password)));
+                response = request(targetServer,
+                        new Message(MessageType.LOGIN, new LoginRequest(username, password)));
                 if (response != null && response.getType() == MessageType.LOGIN_SUCCESS
                         && response.getData() instanceof UserInfo user && !closed
                         && tcpClient.setReadTimeout(0)) {
@@ -77,7 +91,7 @@ public class AuthController {
                             roomController.show();
                         } else {
                             accountView = new AdminView(user, this::sendAuthenticated, this::logout);
-                            root.getChildren().setAll(accountView);
+                            UiTheme.show(root, accountView);
                         }
                     });
                     // Chỉ thread này đọc socket sau login. Không timeout khi phiên đang chờ.
@@ -150,16 +164,26 @@ public class AuthController {
         if (error == null && !password.equals(registerView.getConfirmPassword())) {
             error = "Mật khẩu nhập lại không khớp.";
         }
+        ClientConfig server = null;
+        if (error == null) {
+            try {
+                server = ClientConfig.fromInput(loginView.getServerHost(), loginView.getServerPort());
+            } catch (IllegalArgumentException e) {
+                error = e.getMessage();
+            }
+        }
         if (error != null) {
             registerView.showMessage(error, false);
             return;
         }
         registerView.setBusy(true);
         registerView.showMessage("Đang đăng ký...", true);
+        ClientConfig targetServer = server;
         startNetworkThread("Register-Network", () -> {
             Message response = null;
             try {
-                response = request(new Message(MessageType.REGISTER, new RegisterRequest(username, password)));
+                response = request(targetServer,
+                        new Message(MessageType.REGISTER, new RegisterRequest(username, password)));
             } finally {
                 tcpClient.disconnect();
                 Message result = response;
@@ -177,8 +201,9 @@ public class AuthController {
         });
     }
 
-    private Message request(Message message) {
-        if (!closed && tcpClient.connect("localhost", 5555) && !closed && tcpClient.sendMessage(message)) {
+    private Message request(ClientConfig server, Message message) {
+        if (!closed && tcpClient.connect(server.host(), server.port())
+                && !closed && tcpClient.sendMessage(message)) {
             return tcpClient.receiveMessage();
         }
         return null;
@@ -212,7 +237,7 @@ public class AuthController {
         loginView.clearPassword();
         loginView.setBusy(false);
         loginView.showMessage(message, success);
-        root.getChildren().setAll(loginView);
+        UiTheme.show(root, loginView);
     }
 
     private void runOnUi(Runnable action) {
