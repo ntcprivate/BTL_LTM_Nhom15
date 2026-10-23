@@ -27,6 +27,8 @@ public class RoomController {
     private GameController game;
     private RoomInfo currentRoom;
     private boolean loggingOut;
+    // Thông báo hiển thị ở danh sách phòng sau khi tải xong, ví dụ lý do bị đưa ra khỏi phòng.
+    private String pendingRoomListNotice;
 
     public RoomController(StackPane root, UserInfo user, Consumer<Message> send, Runnable logout) {
         this.root = root;
@@ -37,7 +39,7 @@ public class RoomController {
         avatarPicker = new AvatarPickerView(user, this::saveAvatar, this::show);
         roomList = new RoomListView(user, this::join, this::refresh, this::show);
         history = new HistoryView(send, this::show);
-        lobby = new LobbyView(user.getId(), this::toggleReady, this::leave, logout);
+        lobby = new LobbyView(user.getId(), this::toggleReady, this::leave, logout, this::kick);
     }
 
     public void show() {
@@ -98,6 +100,11 @@ public class RoomController {
                 .anyMatch(p -> p.getUserId() == user.getId() && p.isReady());
         lobby.setBusy(true);
         send.accept(new Message(ready ? MessageType.CANCEL_READY : MessageType.READY));
+    }
+
+    private void kick(int targetId) {
+        lobby.setBusy(true);
+        send.accept(new Message(MessageType.KICK_PLAYER, targetId));
     }
 
     private void leave() {
@@ -164,7 +171,8 @@ public class RoomController {
                 if (message.getData() instanceof List<?> data && data.stream().allMatch(RoomInfo.class::isInstance)) {
                     roomList.updateRooms(data.stream().map(RoomInfo.class::cast).toList());
                     roomList.setBusy(false);
-                    roomList.showMessage("Chọn phòng để tham gia.");
+                    roomList.showMessage(pendingRoomListNotice != null ? pendingRoomListNotice : "Chọn phòng để tham gia.");
+                    pendingRoomListNotice = null;
                 }
             }
             case JOIN_SUCCESS -> {
@@ -180,6 +188,14 @@ public class RoomController {
                     currentRoom = room;
                     lobby.update(room);
                 }
+            }
+            case KICKED -> {
+                if (game != null) { game.close(); game = null; }
+                currentRoom = null;
+                pendingRoomListNotice = "IDLE_TIMEOUT".equals(message.getData())
+                        ? "Bạn đã được đưa ra khỏi phòng vì không bấm Sẵn sàng trong 60 giây."
+                        : "Bạn đã bị chủ phòng mời ra khỏi phòng.";
+                if (!viewingHistory) { showRooms(); }
             }
             case ACTION_SUCCESS -> {
                 if ("LEAVE_ROOM".equals(message.getData())) {
@@ -197,6 +213,9 @@ public class RoomController {
                     case "NOT_IN_ROOM" -> "Bạn chưa tham gia phòng.";
                     case "NOT_LOGGED_IN" -> "Hãy đăng nhập trước khi tham gia phòng.";
                     case "FORBIDDEN" -> "Tài khoản không có quyền tham gia phòng.";
+                    case "KICKED_FROM_ROOM" -> "Bạn đã bị mời ra khỏi phòng này. Hãy chọn phòng khác.";
+                    case "NOT_HOST" -> "Chỉ chủ phòng mới được mời người chơi ra.";
+                    case "INVALID_TARGET" -> "Người chơi này không còn trong phòng.";
                     default -> "Yêu cầu không hợp lệ.";
                 };
                 roomList.setBusy(false);

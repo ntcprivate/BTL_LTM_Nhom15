@@ -11,23 +11,35 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 
 public class GameView extends BorderPane {
+    private static final int UNDO_LIMIT = 20;
+    private static final KeyCombination UNDO_KEY = new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN);
     private final Canvas canvas = new Canvas(500, 500);
     private final ImageView picture = new ImageView();
     private final Label category = new Label();
     private final Label word = new Label();
+    private final Label hint = new Label();
     private final Label timer = new Label();
     private final Label status = new Label();
     private final ColorPicker color = new ColorPicker(Color.BLACK);
     private final Slider width = new Slider(2, 24, 5);
     private final ToggleButton eraser = new ToggleButton("Tẩy");
     private final Button clear = new Button("Xóa tranh");
+    private final Button undo = new Button("↶ Hoàn tác");
+    // Ảnh canvas trước mỗi nét vẽ hoặc lần xóa, để người chơi quay lại khi vẽ nhầm.
+    private final Deque<WritableImage> undoStack = new ArrayDeque<>();
     private final TextField answer = new TextField();
     private final Button guess = new Button("Đoán");
     private final Button back = new Button("Về phòng chờ");
@@ -43,8 +55,11 @@ public class GameView extends BorderPane {
         setPadding(new Insets(18));
         category.getStyleClass().add("section-title");
         word.getStyleClass().add("game-word");
+        hint.getStyleClass().add("game-hint");
+        hint.setVisible(false);
+        hint.setManaged(false);
         timer.getStyleClass().add("timer-chip");
-        VBox headingText = new VBox(5, category, word);
+        VBox headingText = new VBox(5, category, word, hint);
         Region headingSpacer = new Region();
         HBox.setHgrow(headingSpacer, Priority.ALWAYS);
         HBox heading = new HBox(14, headingText, headingSpacer, timer);
@@ -61,12 +76,15 @@ public class GameView extends BorderPane {
         board.setMinSize(500, 500);
         board.setMaxSize(500, 500);
         board.getStyleClass().add("canvas-frame");
-        HBox tools = new HBox(8, color, new Label("Nét"), width, eraser, clear);
+        HBox tools = new HBox(8, color, new Label("Nét"), width, eraser, undo, clear);
         tools.setAlignment(Pos.CENTER);
         tools.getStyleClass().add("toolbar");
         width.setPrefWidth(100);
         eraser.getStyleClass().add("secondary-button");
         clear.getStyleClass().add("ghost-button");
+        undo.getStyleClass().add("secondary-button");
+        undo.setTooltip(new Tooltip("Quay lại nét vẽ trước (Ctrl+Z)"));
+        undo.setDisable(true);
         VBox left = new VBox(10, board, tools);
         left.setAlignment(Pos.TOP_CENTER);
         answer.setPromptText("Nhập đáp án (tối đa 3 lần/lượt)");
@@ -98,9 +116,21 @@ public class GameView extends BorderPane {
         HBox center = new HBox(24, left, right);
         center.setAlignment(Pos.TOP_CENTER);
         setCenter(center);
-        clear.setOnAction(event -> clearCanvas());
+        clear.setOnAction(event -> {
+            if (!drawing) { return; }
+            saveUndoState();
+            clearCanvas();
+        });
+        undo.setOnAction(event -> undo());
+        addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (UNDO_KEY.match(event) && drawing) {
+                undo();
+                event.consume();
+            }
+        });
         canvas.setOnMousePressed(event -> {
             if (!drawing) { return; }
+            saveUndoState();
             lastX = event.getX(); lastY = event.getY();
             GraphicsContext graphics = brush();
             double size = width.getValue();
@@ -129,6 +159,20 @@ public class GameView extends BorderPane {
         graphics.fillRect(0, 0, 500, 500);
     }
 
+    private void saveUndoState() {
+        SnapshotParameters parameters = new SnapshotParameters();
+        parameters.setFill(Color.WHITE);
+        undoStack.push(canvas.snapshot(parameters, null));
+        if (undoStack.size() > UNDO_LIMIT) { undoStack.removeLast(); }
+        undo.setDisable(!drawing);
+    }
+
+    private void undo() {
+        if (!drawing || undoStack.isEmpty()) { return; }
+        canvas.getGraphicsContext2D().drawImage(undoStack.pop(), 0, 0, 500, 500);
+        undo.setDisable(undoStack.isEmpty());
+    }
+
     public void showDrawing(DrawingPrompt prompt) {
         category.setText("Chủ đề: " + prompt.getCategory());
         word.setText("Từ khóa của bạn: " + prompt.getWord());
@@ -145,6 +189,7 @@ public class GameView extends BorderPane {
         width.setDisable(!enabled);
         eraser.setDisable(!enabled);
         clear.setDisable(!enabled);
+        undo.setDisable(!enabled || undoStack.isEmpty());
     }
 
     public int[] captureDrawing() {
@@ -168,6 +213,7 @@ public class GameView extends BorderPane {
         picture.setImage(new Image(new ByteArrayInputStream(round.getImage())));
         word.setText("Tranh của " + round.getDrawerName() + " — lượt "
                 + (round.getRoundIndex() + 1) + "/" + round.getTotalRounds());
+        showHint(round.getHint(), false);
         answer.clear();
         boolean owner = round.getDrawerId() == userId;
         answer.setDisable(owner);
@@ -175,6 +221,19 @@ public class GameView extends BorderPane {
         status.setText(owner ? "Bạn không được đoán tranh của chính mình." : "Bạn có tối đa 3 lần đoán.");
         UiTheme.status(status, "info");
         timer.setText("Đoán: " + round.getSeconds() + " giây");
+    }
+
+    public void showHint(String mask, boolean letterRevealed) {
+        boolean visible = mask != null && !mask.isBlank();
+        hint.setVisible(visible);
+        hint.setManaged(visible);
+        if (visible) { hint.setText("Gợi ý: " + mask + (letterRevealed ? "   (đã mở 1 chữ)" : "")); }
+    }
+
+    public void showAnswer(String answerWord) {
+        hint.setVisible(true);
+        hint.setManaged(true);
+        hint.setText("Đáp án: " + answerWord);
     }
 
     public String getAnswer() { return answer.getText(); }

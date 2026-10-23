@@ -8,6 +8,9 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 - Trang chủ sau đăng nhập với lối tắt vào phòng, lịch sử và hồ sơ.
 - Chọn avatar từ 9 tranh Van Gogh; avatar được lưu theo tài khoản và hiển thị trong phòng chờ.
 - Vào phòng, chọn chủ đề, sẵn sàng, vẽ và đoán từ, tính điểm và xếp hạng.
+- Người vào phòng đầu tiên là chủ phòng (★) và có thể mời người khác ra; người bị mời ra không vào lại được phòng đó cho tới khi phòng trống. Khi trong phòng đã có người sẵn sàng, ai chưa sẵn sàng sau 60 giây sẽ tự động được đưa ra khỏi phòng.
+- Khi vẽ có nút **Hoàn tác** (Ctrl+Z) để bỏ nét vẽ gần nhất hoặc khôi phục tranh vừa bị xóa (tối đa 20 bước).
+- Khi đoán, người chơi thấy gợi ý số chữ cái dạng `_ _ _   _ _ _`; sau 15 giây server mở thêm một chữ cái ngẫu nhiên.
 - Lịch sử trận: thời gian, người tham gia, điểm, thứ hạng, từng vòng và các lượt đoán.
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.
 - ADMIN thêm, sửa, xóa chủ đề và từ khóa.

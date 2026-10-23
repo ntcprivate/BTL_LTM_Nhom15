@@ -20,7 +20,7 @@ public class ServerMain {
         SessionManager sessionManager = new SessionManager();
         GameManager gameManager = new GameManager();
         Runtime.getRuntime().addShutdownHook(new Thread(gameManager::close, "Game-Shutdown"));
-        RoomManager roomManager = new RoomManager(gameManager);
+        RoomManager roomManager = new RoomManager(gameManager, System::nanoTime, true);
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
 

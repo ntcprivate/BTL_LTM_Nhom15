@@ -110,6 +110,35 @@ class GameManagerTest {
     }
 
     @Test
+    void roundShowsMaskedHintAndRevealsOneLetterAfterFifteenSeconds() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            assertEquals("_ _ _   _ _ _", f.round().getHint());
+            f.advance(14);
+            assertTrue(f.messages.get(2).stream().noneMatch(m -> m.getType() == MessageType.HINT));
+            f.advance(1);
+            RoundHint hint = assertInstanceOf(RoundHint.class, f.last(2, MessageType.HINT).getData());
+            assertEquals(f.matchId, hint.getMatchId());
+            assertEquals(0, hint.getRoundIndex());
+            String symbols = hint.getHint().replace(" ", "");
+            assertEquals(6, symbols.length());
+            assertEquals(5, symbols.chars().filter(c -> c == '_').count());
+            for (int i = 0; i < symbols.length(); i++) {
+                if (symbols.charAt(i) != '_') { assertEquals("Conmèo".charAt(i), symbols.charAt(i)); }
+            }
+            f.advance(5);
+            assertEquals(1, f.messages.get(2).stream().filter(m -> m.getType() == MessageType.HINT).count());
+
+            f.advance(10);
+            f.advance(3);
+            assertEquals(1, f.round().getRoundIndex());
+            assertEquals("_ _ _   _ _ _", f.round().getHint());
+            f.advance(15);
+            assertEquals(1, ((RoundHint) f.last(2, MessageType.HINT).getData()).getRoundIndex());
+        }
+    }
+
+    @Test
     void uploadTimeoutUsesBlankDrawingsAndContinuesMatch() throws Exception {
         try (Fixture f = new Fixture()) {
             f.advance(60);

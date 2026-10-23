@@ -171,7 +171,7 @@ public class ClientHandler implements Runnable {
             case GET_HISTORY, GET_HISTORY_DETAIL, GET_CATALOG, EDIT_CATALOG -> {
                 handleDataMessage(message); return;
             }
-            case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, DRAW_UPLOAD, GUESS -> {
+            case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, KICK_PLAYER, DRAW_UPLOAD, GUESS -> {
                 handleRoomMessage(message, receivedAt);
                 return;
             }
@@ -274,6 +274,13 @@ public class ClientHandler implements Runnable {
             case LEAVE_ROOM -> roomManager.leave(currentUser.getId(), this::sendMessage);
             case READY -> roomManager.ready(currentUser.getId(), true, this::sendMessage);
             case CANCEL_READY -> roomManager.ready(currentUser.getId(), false, this::sendMessage);
+            case KICK_PLAYER -> {
+                if (message.getData() instanceof Integer targetId) {
+                    roomManager.kick(currentUser.getId(), targetId, this::sendMessage);
+                } else {
+                    sendMessage(new Message(MessageType.ACTION_FAILED, "INVALID_REQUEST"));
+                }
+            }
             case DRAW_UPLOAD, GUESS -> roomManager.handleGameMessage(currentUser.getId(), message, receivedAt, this::sendMessage);
             default -> { }
         }

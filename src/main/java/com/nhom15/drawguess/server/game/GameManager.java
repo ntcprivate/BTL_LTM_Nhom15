@@ -13,6 +13,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -27,12 +29,14 @@ public class GameManager implements AutoCloseable {
     public static final int UPLOAD_SECONDS = 10;
     public static final int GUESS_SECONDS = 30;
     public static final int REVEAL_SECONDS = 3;
+    public static final int HINT_SECONDS = 15;
     private final HistoryDAO historyDAO;
     private final WordDAO wordDAO;
     private final DrawingStore drawings;
     private final LongSupplier clock;
     private final ScheduledExecutorService timers;
     private final Map<Integer, Match> matches = new ConcurrentHashMap<>();
+    private final Random random = new Random();
 
     public GameManager() {
         this(new WordDAO(), new DrawingStore(Path.of("server-data", "drawings")), System::nanoTime, true, new HistoryDAO());
@@ -100,6 +104,9 @@ public class GameManager implements AutoCloseable {
                     case ROUND_END -> nextRound(match);
                     default -> { }
                 }
+            } else if (match.phase == GamePhase.GUESSING && !match.hintRevealed
+                    && clock.getAsLong() >= match.roundStarted + seconds(HINT_SECONDS)) {
+                revealHint(match);
             }
             if (matches.get(roomId) == match) { sendTimer(match); }
         }
@@ -236,12 +243,24 @@ public class GameManager implements AutoCloseable {
         persist(match);
         match.deadline = match.roundStarted + seconds(GUESS_SECONDS);
         match.firstCorrect = null;
+        match.hintRevealed = false;
         for (Player player : match.order) { player.attempts = 0; player.solved = false; }
         Player drawer = match.order.get(match.round);
         broadcast(match, MessageType.ROUND_START, new RoundInfo(match.id, match.round, match.order.size(),
-                drawer.id, drawer.username, match.category, drawer.image, GUESS_SECONDS));
+                drawer.id, drawer.username, match.category, drawer.image, GUESS_SECONDS,
+                WordHints.mask(drawer.word, Set.of())));
         sendTimer(match);
         if (everyoneDone(match)) { endRound(match); }
+    }
+
+    // Mở một chữ cái ngẫu nhiên; từ chỉ có một chữ cái thì không mở vì sẽ lộ đáp án.
+    private void revealHint(Match match) {
+        match.hintRevealed = true;
+        String word = match.order.get(match.round).word;
+        int letters = WordHints.letterCount(word);
+        if (letters < 2) { return; }
+        String hint = WordHints.mask(word, Set.of(random.nextInt(letters)));
+        broadcast(match, MessageType.HINT, new RoundHint(match.id, match.round, hint));
     }
 
     private boolean everyoneDone(Match match) {
@@ -368,6 +387,7 @@ public class GameManager implements AutoCloseable {
         int round = -1;
         Player firstCorrect;
         long firstReceivedAt;
+        boolean hintRevealed;
         ScheduledFuture<?> timer;
 
         Match(RoomInfo room, GamePlan plan, Map<Integer, Consumer<Message>> senders, Object lock, Runnable finished) {

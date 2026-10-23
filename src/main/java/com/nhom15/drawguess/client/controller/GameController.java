@@ -83,6 +83,10 @@ public class GameController {
                     view.showRound(info, userId);
                 }
             }
+            case HINT -> {
+                if (message.getData() instanceof RoundHint hint && matchId.equals(hint.getMatchId())
+                        && hint.getRoundIndex() == round) { view.showHint(hint.getHint(), true); }
+            }
             case GUESS_RESULT -> {
                 if (message.getData() instanceof GuessResult result && matchId.equals(result.getMatchId())
                         && result.getRoundIndex() == round) { view.showGuessResult(result); }
@@ -95,7 +99,10 @@ public class GameController {
             case TIME_UP, GAME_END -> view.lockGuess();
             case ANSWER -> {
                 if (message.getData() instanceof RoundAnswer answer && matchId.equals(answer.getMatchId())
-                        && answer.getRoundIndex() == round) { view.showMessage("Đáp án: " + answer.getWord()); }
+                        && answer.getRoundIndex() == round) {
+                    view.showAnswer(answer.getWord());
+                    view.showMessage("Đáp án: " + answer.getWord());
+                }
             }
             case GAME_RESULT -> {
                 if (message.getData() instanceof GameResult result && matchId.equals(result.getMatchId())) { view.showResult(result); }

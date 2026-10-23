@@ -116,7 +116,7 @@ class AdminHistoryViewTest {
                             new PlayerInfo(3, "họa_sĩ", true, true)))));
             snapshot(page(roomList), "rooms.png");
 
-            LobbyView lobby = new LobbyView(1, ()->{}, ()->{}, ()->{});
+            LobbyView lobby = new LobbyView(1, ()->{}, ()->{}, ()->{}, ignored->{});
             lobby.update(new RoomInfo(2, RoomStatus.READY_CHECK, List.of(
                     new PlayerInfo(1, "người_chơi", true, true, "irises"),
                     new PlayerInfo(2, "bạn_chơi", false, true, "almond-blossoms"),

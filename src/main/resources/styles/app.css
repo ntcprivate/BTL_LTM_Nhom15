@@ -389,6 +389,24 @@
     -fx-font-weight: 800;
 }
 
+.game-hint {
+    -fx-text-fill: #744400;
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 20px;
+    -fx-font-weight: 700;
+}
+
+.room-host {
+    -fx-text-fill: #9a6700;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.kick-button {
+    -fx-font-size: 11px;
+    -fx-padding: 3px 9px;
+}
+
 .canvas-frame {
     -fx-background-color: #fffef5;
     -fx-border-color: #d6a12f;

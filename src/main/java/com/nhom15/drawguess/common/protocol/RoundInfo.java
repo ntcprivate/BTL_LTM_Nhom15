@@ -12,8 +12,15 @@ public class RoundInfo implements Serializable {
     private final String category;
     private final byte[] image;
     private final int seconds;
+    private final String hint;
 
     public RoundInfo(String matchId, int roundIndex, int totalRounds, int drawerId, String drawerName, String category, byte[] image, int seconds) {
+        this(matchId, roundIndex, totalRounds, drawerId, drawerName, category, image, seconds, null);
+    }
+
+    public RoundInfo(String matchId, int roundIndex, int totalRounds, int drawerId, String drawerName, String category,
+                     byte[] image, int seconds, String hint) {
+        this.hint = hint;
         this.matchId = matchId;
         this.roundIndex = roundIndex;
         this.totalRounds = totalRounds;
@@ -32,4 +39,5 @@ public class RoundInfo implements Serializable {
     public String getCategory() { return category; }
     public byte[] getImage() { return image == null ? null : image.clone(); }
     public int getSeconds() { return seconds; }
+    public String getHint() { return hint; }
 }
