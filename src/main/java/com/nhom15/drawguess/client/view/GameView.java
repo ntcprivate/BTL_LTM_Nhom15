@@ -39,9 +39,18 @@ public class GameView extends BorderPane {
     private double lastY;
 
     public GameView(Runnable sendGuess, Runnable returnToLobby, Runnable leaveRoom, Runnable signOut) {
-        setPadding(new Insets(20));
-        VBox heading = new VBox(8, category, word, timer);
-        heading.setPadding(new Insets(0, 0, 12, 0));
+        UiTheme.apply(this);
+        setPadding(new Insets(18));
+        category.getStyleClass().add("section-title");
+        word.getStyleClass().add("game-word");
+        timer.getStyleClass().add("timer-chip");
+        VBox headingText = new VBox(5, category, word);
+        Region headingSpacer = new Region();
+        HBox.setHgrow(headingSpacer, Priority.ALWAYS);
+        HBox heading = new HBox(14, headingText, headingSpacer, timer);
+        heading.setAlignment(Pos.CENTER_LEFT);
+        heading.getStyleClass().add("header-card");
+        BorderPane.setMargin(heading, new Insets(0, 0, 16, 0));
         setTop(heading);
         clearCanvas();
         picture.setFitWidth(500);
@@ -51,10 +60,15 @@ public class GameView extends BorderPane {
         StackPane board = new StackPane(canvas, picture);
         board.setMinSize(500, 500);
         board.setMaxSize(500, 500);
+        board.getStyleClass().add("canvas-frame");
         HBox tools = new HBox(8, color, new Label("Nét"), width, eraser, clear);
         tools.setAlignment(Pos.CENTER);
+        tools.getStyleClass().add("toolbar");
         width.setPrefWidth(100);
+        eraser.getStyleClass().add("secondary-button");
+        clear.getStyleClass().add("ghost-button");
         VBox left = new VBox(10, board, tools);
+        left.setAlignment(Pos.TOP_CENTER);
         answer.setPromptText("Nhập đáp án (tối đa 3 lần/lượt)");
         guess.setOnAction(event -> sendGuess.run());
         answer.setOnAction(event -> sendGuess.run());
@@ -63,11 +77,26 @@ public class GameView extends BorderPane {
         logout.setOnAction(event -> signOut.run());
         back.setVisible(false);
         back.setManaged(false);
-        scores.setPrefHeight(270);
+        guess.getStyleClass().add("primary-button");
+        back.getStyleClass().add("primary-button");
+        leave.getStyleClass().add("ghost-button");
+        logout.getStyleClass().add("danger-button");
+        scores.setPrefHeight(300);
+        VBox.setVgrow(scores, Priority.ALWAYS);
         status.setWrapText(true);
-        VBox right = new VBox(12, new Label("Bảng điểm"), scores, answer, guess, status, back, leave, logout);
-        right.setPrefWidth(280);
-        HBox center = new HBox(22, left, right);
+        UiTheme.status(status, "info");
+        Label scoreTitle = new Label("Bảng điểm");
+        scoreTitle.getStyleClass().add("section-title");
+        ArtworkCard painting = new ArtworkCard(
+                "/images/Wheatfield-with-Crows-1890.jpg", "Wheatfield with Crows • 1890", 270, 86);
+        HBox.setHgrow(answer, Priority.ALWAYS);
+        HBox guessRow = new HBox(8, answer, guess);
+        HBox navigation = new HBox(8, back, leave, logout);
+        VBox right = new VBox(12, painting, scoreTitle, scores, guessRow, status, navigation);
+        right.getStyleClass().add("sidebar-card");
+        right.setPrefWidth(310);
+        HBox center = new HBox(24, left, right);
+        center.setAlignment(Pos.TOP_CENTER);
         setCenter(center);
         clear.setOnAction(event -> clearCanvas());
         canvas.setOnMousePressed(event -> {
@@ -105,6 +134,7 @@ public class GameView extends BorderPane {
         word.setText("Từ khóa của bạn: " + prompt.getWord());
         timer.setText("Vẽ: " + prompt.getSeconds() + " giây");
         status.setText("Vẽ từ khóa của bạn. Tranh sẽ được gửi khi hết giờ.");
+        UiTheme.status(status, "info");
         setDrawing(true);
         lockGuess();
     }
@@ -143,6 +173,7 @@ public class GameView extends BorderPane {
         answer.setDisable(owner);
         guess.setDisable(owner);
         status.setText(owner ? "Bạn không được đoán tranh của chính mình." : "Bạn có tối đa 3 lần đoán.");
+        UiTheme.status(status, "info");
         timer.setText("Đoán: " + round.getSeconds() + " giây");
     }
 
@@ -162,6 +193,8 @@ public class GameView extends BorderPane {
             default -> "Lượt đoán đã kết thúc hoặc bạn đã hết lượt đoán.";
         };
         status.setText(message);
+        UiTheme.status(status, "CORRECT".equals(result.getReason()) ? "success"
+                : result.isLocked() ? "error" : "info");
         if (!result.isLocked()) { answer.requestFocus(); }
     }
 
@@ -189,11 +222,15 @@ public class GameView extends BorderPane {
         updateScores(result.getPlayers());
         timer.setText("Trận đấu kết thúc");
         status.setText("Kết quả đã được xếp hạng. Bạn có thể trở về phòng chờ để chơi tiếp.");
+        UiTheme.status(status, "success");
         back.setVisible(true);
         back.setManaged(true);
     }
 
-    public void showMessage(String message) { status.setText(message); }
+    public void showMessage(String message) {
+        status.setText(message);
+        UiTheme.status(status, "info");
+    }
 
     public void setLeaving() {
         setDrawing(false);
@@ -202,5 +239,6 @@ public class GameView extends BorderPane {
         logout.setDisable(true);
         back.setDisable(true);
         status.setText("Đang rời trận đấu...");
+        UiTheme.status(status, "info");
     }
 }

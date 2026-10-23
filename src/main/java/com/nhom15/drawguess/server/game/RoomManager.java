@@ -200,7 +200,8 @@ public class RoomManager {
 
     private RoomInfo snapshot(Room room) {
         List<PlayerInfo> players = room.players.values().stream()
-                .map(p -> new PlayerInfo(p.user.getId(), p.user.getUsername(), p.ready, p.online))
+                .map(p -> new PlayerInfo(p.user.getId(), p.user.getUsername(), p.ready, p.online,
+                        p.user.getAvatarKey()))
                 .toList();
         return new RoomInfo(room.id, room.status, players);
     }

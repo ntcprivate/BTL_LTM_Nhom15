@@ -11,7 +11,7 @@ public class UserDAO {
 
     public UserInfo login(String username, String password) throws SQLException {
         // So sánh mật khẩu chính xác, kể cả chữ hoa và khoảng trắng cuối.
-        String sql = "SELECT id, username, role FROM user_account WHERE username = ? "
+        String sql = "SELECT id, username, role, avatar_key FROM user_account WHERE username = ? "
                 + "AND CAST(password AS BINARY) = CAST(? AS BINARY)";
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -20,7 +20,7 @@ public class UserDAO {
             try (ResultSet result = statement.executeQuery()) {
                 if (result.next()) {
                     return new UserInfo(result.getInt("id"), result.getString("username"),
-                            result.getString("role"));
+                            result.getString("role"), result.getString("avatar_key"));
                 }
                 return null;
             }
@@ -86,6 +86,16 @@ public class UserDAO {
                 return false;
             }
             throw e;
+        }
+    }
+
+    public boolean updateAvatar(int userId, String avatarKey) throws SQLException {
+        String sql = "UPDATE user_account SET avatar_key = ? WHERE id = ?";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, avatarKey);
+            statement.setInt(2, userId);
+            return statement.executeUpdate() == 1;
         }
     }
 }

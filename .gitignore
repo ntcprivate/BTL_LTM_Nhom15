@@ -1,6 +1,7 @@
 target/
 server-data/
 config/db.properties
+config/client.properties
 .env
 .env.*
 !.env.example

@@ -18,22 +18,44 @@ public class RegisterView extends VBox {
     private final Label statusLabel = new Label("Nhập thông tin để tạo tài khoản.");
 
     public RegisterView() {
+        UiTheme.apply(this);
+        getStyleClass().add("auth-card");
         setAlignment(Pos.CENTER);
-        setSpacing(12);
-        setPadding(new Insets(30));
+        setSpacing(14);
+        setPadding(new Insets(30, 38, 30, 38));
+        setMaxWidth(480);
+        setMaxHeight(USE_PREF_SIZE);
+        Label brand = new Label("✦  STARRY DRAW  ✦");
+        brand.getStyleClass().add("brand-chip");
         Label title = new Label("Draw and Guess");
-        title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold;");
+        title.getStyleClass().add("page-title");
+        Label subtitle = new Label("Bắt đầu hành trình dưới bầu trời đầy sao");
+        subtitle.getStyleClass().add("subtle-text");
+        ArtworkCard painting = new ArtworkCard(
+                "/images/Cafe-Terrace-at-Night-1888.jpg", "Café Terrace at Night • 1888", 404, 116);
         usernameField.setPromptText("Tên đăng nhập (tối đa 50 ký tự)");
         passwordField.setPromptText("Mật khẩu");
         confirmPasswordField.setPromptText("Nhập lại mật khẩu");
-        usernameField.setMaxWidth(320);
-        passwordField.setMaxWidth(320);
-        confirmPasswordField.setMaxWidth(320);
+        usernameField.setMaxWidth(Double.MAX_VALUE);
+        passwordField.setMaxWidth(Double.MAX_VALUE);
+        confirmPasswordField.setMaxWidth(Double.MAX_VALUE);
         registerButton.setDefaultButton(true);
+        registerButton.setMaxWidth(Double.MAX_VALUE);
+        registerButton.getStyleClass().add("primary-button");
         statusLabel.setWrapText(true);
-        statusLabel.setMaxWidth(420);
-        getChildren().addAll(title, new Label("Đăng ký tài khoản"), usernameField,
-                passwordField, confirmPasswordField, registerButton, loginLink, statusLabel);
+        statusLabel.setMaxWidth(Double.MAX_VALUE);
+        UiTheme.status(statusLabel, "info");
+        getChildren().addAll(painting, brand, title, subtitle,
+                field("Tên đăng nhập", usernameField), field("Mật khẩu", passwordField),
+                field("Nhập lại mật khẩu", confirmPasswordField), registerButton, loginLink, statusLabel);
+    }
+
+    private VBox field(String text, javafx.scene.Node input) {
+        Label label = new Label(text);
+        label.getStyleClass().add("field-label");
+        VBox group = new VBox(6, label, input);
+        group.setMaxWidth(Double.MAX_VALUE);
+        return group;
     }
 
     public String getUsername() {
@@ -66,7 +88,7 @@ public class RegisterView extends VBox {
 
     public void showMessage(String message, boolean success) {
         statusLabel.setText(message);
-        statusLabel.setStyle(success ? "-fx-text-fill: #16723b;" : "-fx-text-fill: #b42318;");
+        UiTheme.status(statusLabel, success ? "success" : "error");
     }
 
     public void clearPasswords() {

@@ -13,6 +13,7 @@ import com.nhom15.drawguess.server.session.SessionManager;
 import com.nhom15.drawguess.server.game.RoomManager;
 import com.nhom15.drawguess.server.game.HistoryImageService;
 import com.nhom15.drawguess.common.protocol.HistoryData;
+import com.nhom15.drawguess.common.protocol.AvatarCatalog;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -154,6 +155,9 @@ public class ClientHandler implements Runnable {
             return;
         }
         switch (message.getType()) {
+            case UPDATE_AVATAR -> {
+                handleAvatarUpdate(message.getData()); return;
+            }
             case GET_HISTORY_IMAGE -> {
                 if (currentUser == null) {
                     HistoryData.ImageRequest request = message.getData() instanceof HistoryData.ImageRequest r ? r : null;
@@ -310,6 +314,29 @@ public class ClientHandler implements Runnable {
             System.err.println("Lỗi đăng nhập của Client #" + clientId
                     + ": SQLState=" + e.getSQLState() + ", errorCode=" + e.getErrorCode());
             loginFailed("DATABASE_ERROR");
+        }
+    }
+
+    private void handleAvatarUpdate(Object data) {
+        if (currentUser == null) {
+            sendMessage(new Message(MessageType.AVATAR_FAILED, "NOT_LOGGED_IN"));
+            return;
+        }
+        if (!(data instanceof String avatarKey) || !AvatarCatalog.isValid(avatarKey)) {
+            sendMessage(new Message(MessageType.AVATAR_FAILED, "INVALID_AVATAR"));
+            return;
+        }
+        try {
+            if (!userDAO.updateAvatar(currentUser.getId(), avatarKey)) {
+                sendMessage(new Message(MessageType.AVATAR_FAILED, "USER_NOT_FOUND"));
+                return;
+            }
+            currentUser = currentUser.withAvatar(avatarKey);
+            sendMessage(new Message(MessageType.AVATAR_UPDATED, currentUser));
+        } catch (SQLException e) {
+            System.err.println("Lỗi cập nhật avatar Client #" + clientId
+                    + ": SQLState=" + e.getSQLState());
+            sendMessage(new Message(MessageType.AVATAR_FAILED, "DATABASE_ERROR"));
         }
     }
 

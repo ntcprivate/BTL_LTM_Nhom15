@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,6 +39,42 @@ class LoginProtocolTest {
                 return user;
             }
         };
+    }
+
+    @Test
+    void avatarUpdateRequiresLoginAndPersistsTheSelectedPainting() throws Exception {
+        AtomicReference<String> savedAvatar = new AtomicReference<>();
+        UserDAO dao = new UserDAO() {
+            @Override
+            public UserInfo login(String username, String password) {
+                return PLAYER;
+            }
+
+            @Override
+            public boolean updateAvatar(int userId, String avatarKey) {
+                assertEquals(PLAYER.getId(), userId);
+                savedAvatar.set(avatarKey);
+                return true;
+            }
+        };
+        try (ConnectionPair pair = new ConnectionPair(dao, new SessionManager())) {
+            Message denied = pair.request(new Message(MessageType.UPDATE_AVATAR, "irises"));
+            assertEquals(MessageType.AVATAR_FAILED, denied.getType());
+            assertEquals("NOT_LOGGED_IN", denied.getData());
+            assertNull(savedAvatar.get());
+
+            pair.login();
+            Message updated = pair.request(new Message(MessageType.UPDATE_AVATAR, "irises"));
+            assertEquals(MessageType.AVATAR_UPDATED, updated.getType());
+            UserInfo user = assertInstanceOf(UserInfo.class, updated.getData());
+            assertEquals("irises", user.getAvatarKey());
+            assertEquals("irises", savedAvatar.get());
+
+            Message invalid = pair.request(new Message(MessageType.UPDATE_AVATAR, "../../other"));
+            assertEquals(MessageType.AVATAR_FAILED, invalid.getType());
+            assertEquals("INVALID_AVATAR", invalid.getData());
+            assertEquals("irises", savedAvatar.get());
+        }
     }
 
     @Test

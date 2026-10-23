@@ -1,6 +1,7 @@
 package com.nhom15.drawguess.client.controller;
 
 import com.nhom15.drawguess.client.view.GameView;
+import com.nhom15.drawguess.client.view.UiTheme;
 import com.nhom15.drawguess.common.protocol.*;
 import javafx.application.Platform;
 import javafx.scene.layout.StackPane;
@@ -28,7 +29,7 @@ public class GameController {
         matchId = prompt.getMatchId();
         view = new GameView(this::guess, back, leave, logout);
         view.showDrawing(prompt);
-        root.getChildren().setAll(view);
+        UiTheme.show(root, view);
     }
 
     private void guess() {
