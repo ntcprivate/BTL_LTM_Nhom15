@@ -21,7 +21,8 @@ Mức độ: 🔴 nghiêm trọng · 🟠 nên sửa · 🟡 nhỏ / trau chuố
 | C. Code, mạng, bảo mật | 0 | 12 |
 | D. Hiệu năng | 3 | 3 |
 | E. Chạy thử, tài liệu | 2 | 2 |
-| **Tổng** | **28** | **52** |
+| F. Rà soát UI/UX theo ui-ux-pro-max | 0 | 12 |
+| **Tổng** | **28** | **64** |
 
 ### Lịch sử commit trên nhánh `dev_vu`
 
@@ -134,6 +135,28 @@ Màn hình phải đang bật và cửa sổ đo không bị che, nếu không s
 - [x] **E2 — Hướng dẫn chạy demo** (`docs/HUONG_DAN_CHAY_DEMO.md` và mục "Chạy thử không cần MySQL" trong README) — `ae149e5`
 
 ---
+
+## F. Rà soát lại UI/UX bằng skill `ui-ux-pro-max`
+
+Rà soát ngày 24/10/2026 theo `quick-reference.md` (98 quy tắc, 10 nhóm) và các hướng dẫn riêng cho JavaFX (`--stack javafx`).
+Độ tương phản tính theo công thức WCAG từ màu trong `app.css`; bố cục đo ở kích thước cửa sổ laptop **1280×721** (1280×800 trừ taskbar và thanh tiêu đề).
+
+**Đã đạt:** 32/35 cặp màu chữ–nền đạt 4.5:1; có viền focus khi dùng Tab; điều khiển bằng bàn phím (thẻ trang chủ và avatar đều là nút thật); hỏi xác nhận trước thao tác nguy hiểm; trạng thái đang tải / rỗng / lỗi đều có chữ; không dùng màu làm tín hiệu duy nhất; nút bị vô hiệu hóa có độ mờ rõ ràng; phong cách thống nhất.
+
+- [ ] 🟠 **F1 — Một số màn hình cao hơn cửa sổ ở 1280×721** nên mép trên/dưới bị cắt vài pixel: game cần ~804–824px, phòng chờ ~772px, đăng ký ~753px. Giảm khoảng đệm/ảnh trang trí, hoặc cho cuộn khi cửa sổ thấp. *(layout, `min/pref size`)*
+- [ ] 🟠 **F2 — Chưa có tùy chọn giảm chuyển động**: nền động (sao lấp lánh, parallax theo chuột) chạy liên tục chỉ để trang trí. Thêm công tắc "Giảm hiệu ứng" để tắt nền động và các hiệu ứng chuyển cảnh. *(reduced-motion, parallax-subtle)*
+- [ ] 🟠 **F3 — Màu viết thẳng mã hex ở 148 chỗ trong `app.css`**: chưa dùng biến màu (looked-up colors) khai báo một lần trên `.root`. Đổi màu chủ đạo hay kiểm tra tương phản phải sửa rất nhiều chỗ. *(color-semantic, JavaFX "looked-up colors")*
+- [ ] 🟠 **F4 — Hộp thoại xác nhận xóa ở màn hình Quản trị chưa gắn cửa sổ cha** (`AdminView`, thiếu `initOwner`): có thể hiện ra ở giữa màn hình khác hoặc nằm sau cửa sổ game. *(modal ownership)*
+- [ ] 🟡 **F5 — Ô số phòng gần như biến mất khi dòng phòng đang được chọn**: nền ô `#173f84` trên nền dòng `#1d4f91`, tương phản 1.24:1 (cần 3:1). *(non-text contrast)*
+- [ ] 🟡 **F6 — Chữ gợi ý mờ trong ô nhập (placeholder) chỉ đạt 3.37:1** (`#8b8b80` trên `#fffdf2`, cần 4.5:1). *(color-contrast)*
+- [ ] 🟡 **F7 — Tên tranh avatar ở trang chủ đạt 4.48:1**, sát dưới ngưỡng 4.5:1 (`.avatar-name #9a6a08`). *(color-contrast)*
+- [ ] 🟡 **F8 — Vùng bấm nhỏ**: ô chọn màu cao 20px và ô "Chỉ hiện phòng còn chỗ" 20px, dưới mức tối thiểu 24×24px của WCAG 2.5.8; thanh trượt nét vẽ 23px; các liên kết và nút "Mời ra" 24px (vừa chạm ngưỡng). *(touch-target-size)*
+- [ ] 🟡 **F9 — Nhãn chưa liên kết với ô nhập** (không có `setLabelFor` nào): trình đọc màn hình không đọc được tên ô. *(form-labels, JavaFX "Connect labels to inputs")*
+- [ ] 🟡 **F10 — Không có nút hiện/ẩn mật khẩu** ở đăng nhập và đăng ký. *(password-toggle)*
+- [ ] 🟡 **F11 — Biểu tượng là ký tự chữ** (★ ✓ ↶ ✦), kích thước và nét không đồng đều (↶ hiển thị nhỏ). Nên dùng một bộ icon vector thống nhất, ví dụ thư viện Ikonli. *(no-emoji-icons, icon-style-consistent)*
+- [ ] 🟡 **F12 — Lỗi nhập liệu ở đăng nhập/đăng ký hiện ở ô thông báo cuối form**, không nằm ngay dưới ô bị sai và không tự đưa con trỏ về ô đó. *(error-placement, focus-management)*
+
+> Ghi chú: bộ gợi ý thiết kế của skill (`--design-system`) đề xuất phong cách Claymorphism hồng – vàng cho game vẽ vui nhộn. Giao diện hiện tại theo chủ đề tranh Van Gogh đã có nét riêng, nhất quán và hợp với game (bo góc lớn, viền dày, màu ấm), nên **không cần đổi phong cách**; chỉ sửa các điểm F1–F12.
 
 ## Thứ tự đề xuất cho phần còn lại
 
