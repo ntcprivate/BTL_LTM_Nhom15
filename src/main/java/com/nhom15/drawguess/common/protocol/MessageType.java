@@ -56,5 +56,13 @@ public enum MessageType {
     HINT,
     KICK_PLAYER, KICKED,
     // Số tài khoản đang đăng nhập trên server, gửi kèm ROOM_LIST.
-    ONLINE_COUNT
+    ONLINE_COUNT,
+    // Báo cáo tranh trong phiên đoán: quá nửa người đoán báo cáo thì người vẽ mất điểm vòng đó.
+    REPORT_DRAWING, REPORT_STATUS,
+    // Danh sách người đang online và lời mời vào phòng.
+    GET_ONLINE_USERS, ONLINE_USERS, INVITE_PLAYER, INVITATION, DECLINE_INVITE, INVITE_DECLINED,
+    // Mã nối lại phiên: máy vừa mất mạng dùng mã này để lấy lại phiên cũ còn treo trên server.
+    GET_RESUME_TOKEN, RESUME_TOKEN,
+    // Mọi người sẵn sàng: đếm ngược trước khi vào trận (data: số giây); ai bấm "chưa sẵn sàng" thì hủy (data: tên người đó).
+    START_COUNTDOWN, START_CANCELLED
 }

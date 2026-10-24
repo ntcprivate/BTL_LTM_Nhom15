@@ -6,7 +6,10 @@ import com.nhom15.drawguess.client.view.RoomListView;
 import com.nhom15.drawguess.client.view.UiTheme;
 import com.nhom15.drawguess.client.view.HomeView;
 import com.nhom15.drawguess.client.view.AvatarPickerView;
+import com.nhom15.drawguess.client.view.InvitationPrompt;
 import com.nhom15.drawguess.common.protocol.*;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.layout.StackPane;
 
 import java.util.List;
@@ -31,6 +34,11 @@ public class RoomController {
     private boolean loggingOut;
     // Thông báo hiển thị ở danh sách phòng sau khi tải xong, ví dụ lý do bị đưa ra khỏi phòng.
     private String pendingRoomListNotice;
+    // Hộp thoại lời mời đang mở; lời mời mới thay lời mời cũ.
+    private Dialog<ButtonType> invitationPrompt;
+    private String lastInvitedName;
+    // Server vừa đưa người chơi về lại trận đang chơi (sau khi mất kết nối).
+    private boolean resumingMatch;
 
     public RoomController(StackPane root, UserInfo user, Consumer<Message> send, Runnable logout) {
         this.root = root;
@@ -42,6 +50,39 @@ public class RoomController {
         roomList = new RoomListView(user, this::join, this::refresh, this::show);
         history = new HistoryView(send, this::show);
         lobby = new LobbyView(user.getId(), this::toggleReady, this::leave, logout, this::kick);
+        lobby.setOnInvite(this::invite, () -> send.accept(new Message(MessageType.GET_ONLINE_USERS)));
+        roomList.setOnShowOnline(() -> send.accept(new Message(MessageType.GET_ONLINE_USERS)));
+        lobby.setOnNotReady(() -> send.accept(new Message(MessageType.CANCEL_READY)));
+    }
+
+    private void invite(OnlineUser target) {
+        lastInvitedName = target.getUsername();
+        lobby.showMessage("Đang gửi lời mời tới " + target.getUsername() + "...");
+        send.accept(new Message(MessageType.INVITE_PLAYER, target.getUserId()));
+    }
+
+    private void showInvitation(Invitation invitation) {
+        // Đã ở trong phòng (ví dụ vừa tự vào phòng khác) thì không làm phiền, báo từ chối luôn.
+        if (currentRoom != null) {
+            declineInvitation(invitation);
+            return;
+        }
+        // Đóng hộp thoại cũ (đã đóng thì không làm gì); hộp thoại cũ được tính là từ chối.
+        if (invitationPrompt != null) { invitationPrompt.close(); }
+        invitationPrompt = InvitationPrompt.show(root.getScene() == null ? null : root.getScene().getWindow(),
+                invitation, () -> acceptInvitation(invitation), () -> declineInvitation(invitation));
+    }
+
+    private void acceptInvitation(Invitation invitation) {
+        if (loggingOut || currentRoom != null) { return; }
+        // Chuyển về danh sách phòng để nếu không vào được thì người chơi vẫn thấy lý do.
+        showRooms();
+        roomList.setBusy(true);
+        send.accept(new Message(MessageType.JOIN_ROOM, invitation.getRoomId()));
+    }
+
+    private void declineInvitation(Invitation invitation) {
+        if (!loggingOut) { send.accept(new Message(MessageType.DECLINE_INVITE, invitation)); }
     }
 
     public void show() {
@@ -124,6 +165,9 @@ public class RoomController {
         lobby.setBusy(true);
         roomList.showMessage("Đang đăng xuất...");
         lobby.showMessage("Đang đăng xuất...");
+        lobby.closeInvitePanel();
+        roomList.closeOnlineList();
+        if (invitationPrompt != null) { invitationPrompt.close(); }
         if (game != null) { game.setLeaving(); game.close(); }
     }
 
@@ -163,6 +207,10 @@ public class RoomController {
             Map<Integer, String> avatars = currentRoom.getPlayers().stream()
                     .collect(Collectors.toMap(PlayerInfo::getUserId, PlayerInfo::getAvatarKey, (a, b) -> a));
             game = new GameController(root, user.getId(), prompt, avatars, send, this::returnToLobby, this::leave, logout);
+            if (resumingMatch) {
+                resumingMatch = false;
+                game.showMessage("Đã vào lại trận. Bạn chơi tiếp từ chỗ đang dở.");
+            }
             return;
         }
         if (game != null) { game.handleMessage(message); }
@@ -182,10 +230,42 @@ public class RoomController {
             case ONLINE_COUNT -> {
                 if (message.getData() instanceof Integer count) { roomList.updateOnlineCount(count); }
             }
+            case ONLINE_USERS -> {
+                if (message.getData() instanceof List<?> data && data.stream().allMatch(OnlineUser.class::isInstance)) {
+                    List<OnlineUser> users = data.stream().map(OnlineUser.class::cast).toList();
+                    lobby.showOnlineUsers(users);
+                    roomList.showOnlineUsers(users);
+                }
+            }
+            case START_COUNTDOWN -> {
+                if (message.getData() instanceof Integer seconds && currentRoom != null) { lobby.startCountdown(seconds); }
+            }
+            case START_CANCELLED -> {
+                if (message.getData() instanceof String name && currentRoom != null) {
+                    lobby.stopCountdown();
+                    lobby.showMessage(name.equals(user.getUsername())
+                            ? "Bạn đã báo chưa sẵn sàng. Bấm Sẵn sàng khi bạn chuẩn bị xong."
+                            : name + " chưa sẵn sàng nên trận chưa bắt đầu. Trận sẽ đếm ngược lại khi mọi người cùng sẵn sàng.");
+                }
+            }
+            case INVITATION -> {
+                if (message.getData() instanceof Invitation invitation) { showInvitation(invitation); }
+            }
+            case INVITE_DECLINED -> {
+                if (message.getData() instanceof Invitation invitation && currentRoom != null) {
+                    lobby.showMessage(invitation.getToUsername() + " không nhận lời mời.");
+                }
+            }
             case JOIN_SUCCESS -> {
                 if (message.getData() instanceof RoomInfo room) {
+                    viewingHistory = false;
+                    if (invitationPrompt != null) { invitationPrompt.close(); }
                     currentRoom = room;
+                    roomList.closeOnlineList();
                     lobby.update(room);
+                    // Phòng đang chơi mà vẫn vào được nghĩa là server đưa người chơi về lại trận của mình.
+                    resumingMatch = room.getStatus() == RoomStatus.PLAYING;
+                    if (resumingMatch) { lobby.showMessage("Đang vào lại trận đang chơi..."); }
                     UiTheme.show(root, lobby);
                 }
             }
@@ -199,14 +279,19 @@ public class RoomController {
             case KICKED -> {
                 if (game != null) { game.close(); game = null; }
                 currentRoom = null;
-                pendingRoomListNotice = "IDLE_TIMEOUT".equals(message.getData())
-                        ? "Bạn đã được đưa ra khỏi phòng vì không bấm Sẵn sàng trong 60 giây."
-                        : "Bạn đã bị chủ phòng mời ra khỏi phòng.";
+                lobby.closeInvitePanel();
+                lobby.stopCountdown();
+                pendingRoomListNotice = "Bạn đã bị chủ phòng mời ra khỏi phòng.";
                 if (!viewingHistory) { showRooms(); }
             }
             case ACTION_SUCCESS -> {
+                if ("INVITE_PLAYER".equals(message.getData()) && currentRoom != null) {
+                    lobby.showMessage("Đã gửi lời mời tới " + lastInvitedName + ".");
+                }
                 if ("LEAVE_ROOM".equals(message.getData())) {
                     if (game != null) { game.close(); game = null; }
+                    lobby.closeInvitePanel();
+                    lobby.stopCountdown();
                     currentRoom = null;
                     showRooms();
                 }
@@ -223,6 +308,11 @@ public class RoomController {
                     case "KICKED_FROM_ROOM" -> "Bạn đã bị mời ra khỏi phòng này. Hãy chọn phòng khác.";
                     case "NOT_HOST" -> "Chỉ chủ phòng mới được mời người chơi ra.";
                     case "INVALID_TARGET" -> "Người chơi này không còn trong phòng.";
+                    case "TARGET_OFFLINE" -> "Người này không còn online.";
+                    case "TARGET_BUSY" -> "Người này đang ở trong một phòng khác.";
+                    case "TARGET_KICKED" -> "Người này đã bị mời ra khỏi phòng nên không mời lại được.";
+                    case "INVITE_COOLDOWN" -> "Bạn vừa mời người này. Hãy chờ vài giây rồi mời lại.";
+                    case "INVALID_INVITE" -> "Không thể mời người chơi này.";
                     default -> "Yêu cầu không hợp lệ.";
                 };
                 roomList.setBusy(false);
@@ -242,6 +332,10 @@ public class RoomController {
 
     public void close() {
         loggingOut = true;
+        lobby.closeInvitePanel();
+        lobby.stopCountdown();
+        roomList.closeOnlineList();
+        if (invitationPrompt != null) { invitationPrompt.close(); }
         if (game != null) { game.close(); }
     }
 }

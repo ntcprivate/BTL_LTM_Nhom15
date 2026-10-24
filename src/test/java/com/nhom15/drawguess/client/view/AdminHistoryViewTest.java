@@ -61,6 +61,25 @@ class AdminHistoryViewTest {
             view.handleMessage(new Message(MessageType.CATALOG_FAILED,"DUPLICATE_OR_INVALID_REFERENCE")); assertFalse(view.isDisabled()); snapshot(view,"admin.png");
         });
     }
+    @Test void changingDifficultyDoesNotResizeTheColumns() throws Exception {
+        ui(()-> {
+            AdminView view=new AdminView(new UserInfo(1,"admin","ADMIN"),ignored->{},()->{});
+            var stage=new javafx.stage.Stage(); stage.setOpacity(0); stage.setScene(new Scene(view,1280,800)); stage.show();
+            view.handleMessage(new Message(MessageType.CATALOG,new Catalog(List.of(new Category(1,"Động vật","")),List.of())));
+            @SuppressWarnings("unchecked") ComboBox<String> difficulty=(ComboBox<String>)view.lookup(".combo-box");
+            List<javafx.scene.Node> cards=List.copyOf(view.lookupAll(".sidebar-card"));
+            List<String> layouts=new ArrayList<>();
+            for(String value:List.of("EASY","MEDIUM","HARD","EASY","MEDIUM")) {
+                // Giống người dùng: mở danh sách xổ xuống, chọn mục rồi đóng lại.
+                difficulty.show(); difficulty.getSelectionModel().select(value); difficulty.hide();
+                view.applyCss(); view.layout();
+                layouts.add(cards.stream().map(c->Math.round(c.getLayoutX())+"/"+Math.round(c.getLayoutBounds().getWidth())).toList().toString());
+            }
+            assertEquals(1,layouts.stream().distinct().count(),"Đổi độ khó không được làm hai khung đổi kích thước: "+layouts);
+            assertTrue(cards.getFirst().getLayoutX()>=0,"Khung chủ đề không được tràn sang trái: "+layouts);
+            snapshot(view,"admin-difficulty.png");
+        });
+    }
     @Test void historySelectionLoadsAndDisplaysRoundAndGuessDetails() throws Exception {
         ui(()-> {
             List<Message> sent=new ArrayList<>(); HistoryView view=new HistoryView(sent::add,()->{});

@@ -7,13 +7,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class RoomHostAndIdleKickTest {
-    private final AtomicLong clock = new AtomicLong();
-    private final RoomManager manager = new RoomManager(null, clock::get, false);
+class RoomHostAndKickTest {
+    private final RoomManager manager = new RoomManager(null, System::nanoTime, RoomManager.StartTimer.IMMEDIATE);
     private final Map<Integer, List<Message>> inbox = new HashMap<>();
 
     private List<Message> messages(int id) { return inbox.computeIfAbsent(id, ignored -> new ArrayList<>()); }
@@ -23,10 +21,6 @@ class RoomHostAndIdleKickTest {
     private RoomInfo room(int id) { return manager.getRooms().get(id - 1); }
     private List<Integer> players(int roomId) { return room(roomId).getPlayers().stream().map(PlayerInfo::getUserId).toList(); }
     private Message last(int id) { return messages(id).getLast(); }
-    private int kickIn(int roomId, int userId) {
-        return room(roomId).getPlayers().stream().filter(p -> p.getUserId() == userId).findFirst().orElseThrow().getKickInSeconds();
-    }
-    private void advance(int seconds) { clock.addAndGet(seconds * 1_000_000_000L); manager.tick(); }
 
     @Test
     void firstJoinerIsHostAndHostPassesToEarliestRemainingPlayer() {
@@ -88,54 +82,5 @@ class RoomHostAndIdleKickTest {
         ready(1, true); ready(2, true);
         kick(1, 3);
         assertEquals(RoomStatus.PLAYING, room(1).getStatus());
-    }
-
-    @Test
-    void nobodyIsRemovedWhileNoPlayerIsReady() {
-        join(1, 1); join(2, 1); join(3, 1);
-        advance(300);
-        assertEquals(List.of(1, 2, 3), players(1));
-        assertEquals(-1, kickIn(1, 2));
-    }
-
-    @Test
-    void unreadyPlayersAreRemovedSixtySecondsAfterSomeoneIsReady() {
-        join(1, 1); join(2, 1); join(3, 1);
-        advance(100);
-        ready(1, true);
-        assertEquals(-1, kickIn(1, 1));
-        assertEquals(60, kickIn(1, 2));
-        advance(59);
-        assertEquals(List.of(1, 2, 3), players(1));
-        assertEquals(1, kickIn(1, 3));
-        advance(1);
-        assertEquals(List.of(1), players(1));
-        assertEquals("IDLE_TIMEOUT", last(2).getData());
-        assertEquals(MessageType.KICKED, last(3).getType());
-        assertEquals(RoomStatus.WAITING, room(1).getStatus());
-    }
-
-    @Test
-    void lateJoinersAndCancelledReadyGetAFullCountdown() {
-        join(1, 1); join(2, 1);
-        ready(1, true);
-        advance(30);
-        join(3, 1);
-        advance(30);
-        assertEquals(List.of(1, 3), players(1));
-        assertEquals(30, kickIn(1, 3));
-
-        advance(29);
-        ready(1, false);
-        advance(100);
-        assertEquals(List.of(1, 3), players(1));
-
-        ready(3, true);
-        assertEquals(60, kickIn(1, 1));
-        advance(59);
-        assertEquals(List.of(1, 3), players(1));
-        advance(1);
-        assertEquals(List.of(3), players(1));
-        assertEquals(3, room(1).getHostId());
     }
 }

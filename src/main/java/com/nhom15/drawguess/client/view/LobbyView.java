@@ -1,15 +1,13 @@
 package com.nhom15.drawguess.client.view;
 
 import com.nhom15.drawguess.common.protocol.*;
-import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
+import javafx.animation.ScaleTransition;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
@@ -21,9 +19,9 @@ import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
-import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 public class LobbyView extends VBox {
@@ -37,18 +35,29 @@ public class LobbyView extends VBox {
     private final Button leaveButton = new Button("Rời phòng");
     private final Button logoutButton = new Button("Đăng xuất");
     private final IntConsumer kick;
-    // Nhãn trạng thái đang đếm ngược -> thời điểm (System.nanoTime) người chơi bị đưa ra khỏi phòng.
-    private final Map<Label, Long> countdowns = new HashMap<>();
-    private Long ownKickDeadline;
+    private final Button inviteButton = Icons.attach(new Button("Mời người chơi"), Icons.Glyph.USER_PLUS, 16);
+    private Consumer<OnlineUser> invite = user -> {};
+    private Runnable requestOnlineUsers = () -> {};
+    private OnlinePlayersDialog invitePanel;
+    private boolean canInvite;
     private boolean playing;
+    private final HBox actions;
+    // Đếm ngược khi mọi người đã sẵn sàng; bấm "Tôi chưa sẵn sàng!" thì không vào trận.
+    private final HBox countdownBar;
+    private final Label countdownNumber = new Label();
+    private final Label countdownTitle = new Label();
+    private final Button notReadyButton = new Button("Tôi chưa sẵn sàng!");
+    private Runnable onNotReady = () -> {};
+    private Timeline countdownTimer;
+    private int countdownLeft;
 
     public LobbyView(int userId, Runnable ready, Runnable leave, Runnable logout, IntConsumer kick) {
         this.userId = userId;
         this.kick = kick;
         UiTheme.apply(this);
         getStyleClass().add("content-card");
-        setSpacing(16);
-        setPadding(new Insets(28));
+        setSpacing(10);
+        setPadding(new Insets(18));
         setMaxWidth(Double.MAX_VALUE);
         setMaxHeight(Double.MAX_VALUE);
         title.getStyleClass().add("page-title");
@@ -77,7 +86,15 @@ public class LobbyView extends VBox {
         }
         Label boardTitle = new Label("Người chơi trong phòng");
         boardTitle.getStyleClass().add("section-title");
-        VBox playerBoard = new VBox(14, boardTitle, players);
+        inviteButton.getStyleClass().add("secondary-button");
+        inviteButton.setMinWidth(Region.USE_PREF_SIZE);
+        inviteButton.setTooltip(new Tooltip("Xem ai đang online và mời họ vào phòng"));
+        inviteButton.setOnAction(event -> openInvitePanel());
+        Region boardSpacer = new Region();
+        HBox.setHgrow(boardSpacer, Priority.ALWAYS);
+        HBox boardHeader = new HBox(10, boardTitle, boardSpacer, inviteButton);
+        boardHeader.setAlignment(Pos.CENTER_LEFT);
+        VBox playerBoard = new VBox(14, boardHeader, players);
         playerBoard.getStyleClass().add("lobby-board");
         VBox.setVgrow(players, Priority.ALWAYS);
         VBox.setVgrow(playerBoard, Priority.ALWAYS);
@@ -90,43 +107,102 @@ public class LobbyView extends VBox {
         readyButton.getStyleClass().add("primary-button");
         leaveButton.getStyleClass().add("ghost-button");
         logoutButton.getStyleClass().add("danger-button");
-        HBox actions = new HBox(12, readyButton, leaveButton, logoutButton);
+        actions = new HBox(12, readyButton, leaveButton, logoutButton);
         actions.setAlignment(Pos.CENTER);
         status.setWrapText(true);
         UiTheme.status(status, "info");
-        getChildren().addAll(header, statistics, playerBoard, status, actions);
-        Timeline countdown = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshCountdowns()));
-        countdown.setCycleCount(Animation.INDEFINITE);
-        countdown.play();
+        countdownBar = countdownBar();
+        getChildren().addAll(header, statistics, playerBoard, status, actions, countdownBar);
     }
 
-    private void refreshCountdowns() {
-        long now = System.nanoTime();
-        countdowns.forEach((label, deadline) -> label.setText(countdownText(secondsLeft(deadline, now))));
-        if (ownKickDeadline != null) { status.setText(ownWarning(secondsLeft(ownKickDeadline, now))); }
+    private HBox countdownBar() {
+        countdownNumber.getStyleClass().add("start-countdown-number");
+        countdownNumber.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        countdownTitle.getStyleClass().add("start-countdown-title");
+        Label hint = new Label("Chưa chuẩn bị xong? Bấm nút bên cạnh để cả phòng chờ thêm.");
+        hint.getStyleClass().add("start-countdown-hint");
+        hint.setWrapText(true);
+        VBox text = new VBox(2, countdownTitle, hint);
+        text.setMinWidth(0);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        notReadyButton.getStyleClass().add("danger-button");
+        notReadyButton.setMinWidth(Region.USE_PREF_SIZE);
+        notReadyButton.setOnAction(event -> {
+            notReadyButton.setDisable(true);
+            notReadyButton.setText("Đang báo...");
+            onNotReady.run();
+        });
+        HBox bar = new HBox(16, countdownNumber, text, notReadyButton);
+        bar.setAlignment(Pos.CENTER_LEFT);
+        bar.getStyleClass().add("start-countdown");
+        bar.setAccessibleRole(javafx.scene.AccessibleRole.TEXT);
+        bar.setVisible(false);
+        bar.setManaged(false);
+        return bar;
     }
 
-    private static int secondsLeft(long deadline, long now) {
-        return (int) Math.max(0, (deadline - now + 999_999_999L) / 1_000_000_000L);
+    public void setOnNotReady(Runnable action) {
+        onNotReady = action;
     }
 
-    private static String countdownText(int seconds) {
-        return "Chưa sẵn sàng • rời phòng sau " + seconds + " giây";
+    // Server báo mọi người đã sẵn sàng: hiện đếm ngược thay cho hàng nút Sẵn sàng / Rời phòng.
+    public void startCountdown(int seconds) {
+        stopTimer();
+        countdownLeft = seconds;
+        notReadyButton.setText("Tôi chưa sẵn sàng!");
+        notReadyButton.setDisable(false);
+        showCountdown(true);
+        renderCountdown();
+        countdownTimer = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+            countdownLeft = Math.max(0, countdownLeft - 1);
+            renderCountdown();
+        }));
+        countdownTimer.setCycleCount(seconds);
+        countdownTimer.play();
     }
 
-    private static String ownWarning(int seconds) {
-        return "Mọi người đang chờ bạn! Hãy bấm Sẵn sàng trong " + seconds
-                + " giây, nếu không bạn sẽ được đưa ra khỏi phòng.";
+    public void stopCountdown() {
+        stopTimer();
+        showCountdown(false);
+    }
+
+    public boolean isCountingDown() {
+        return countdownBar.isVisible();
+    }
+
+    private void stopTimer() {
+        if (countdownTimer != null) { countdownTimer.stop(); }
+        countdownTimer = null;
+    }
+
+    private void showCountdown(boolean visible) {
+        countdownBar.setVisible(visible);
+        countdownBar.setManaged(visible);
+        actions.setVisible(!visible);
+        actions.setManaged(!visible);
+    }
+
+    private void renderCountdown() {
+        countdownNumber.setText(String.valueOf(countdownLeft));
+        countdownTitle.setText(countdownLeft > 0 ? "Trận đấu bắt đầu sau " + countdownLeft + " giây" : "Đang vào trận...");
+        countdownBar.setAccessibleText(countdownTitle.getText());
+        if (countdownLeft == 0) { notReadyButton.setDisable(true); }
+        if (!UiTheme.reducedMotion()) {
+            ScaleTransition pulse = new ScaleTransition(Duration.millis(220), countdownNumber);
+            pulse.setFromX(1.18);
+            pulse.setFromY(1.18);
+            pulse.setToX(1);
+            pulse.setToY(1);
+            pulse.play();
+        }
     }
 
     private void confirmKick(PlayerInfo player) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                "Mời " + player.getUsername() + " ra khỏi phòng? Người này sẽ không vào lại được phòng cho tới khi phòng trống.",
-                ButtonType.OK, ButtonType.CANCEL);
-        confirm.setHeaderText(null);
-        confirm.setTitle("Mời người chơi ra");
-        if (getScene() != null) { confirm.initOwner(getScene().getWindow()); }
-        confirm.showAndWait().filter(ButtonType.OK::equals).ifPresent(ignored -> kick.accept(player.getUserId()));
+        if (ThemedDialog.confirm(this, ThemedDialog.Tone.DANGER, Icons.Glyph.USER_MINUS,
+                "Mời " + player.getUsername() + " ra khỏi phòng?",
+                "Người này sẽ không vào lại được phòng cho tới khi phòng trống.", "Mời ra", "Hủy")) {
+            kick.accept(player.getUserId());
+        }
     }
 
     private VBox statistic(Label value, String caption) {
@@ -161,17 +237,14 @@ public class LobbyView extends VBox {
                 : player.isReady() ? "Đã sẵn sàng" : "Chưa sẵn sàng";
         Label playerState = new Label(state);
         playerState.getStyleClass().add("player-state");
-        if (player != null && player.getKickInSeconds() >= 0) {
-            countdowns.put(playerState, System.nanoTime() + player.getKickInSeconds() * 1_000_000_000L);
-            playerState.setText(countdownText(player.getKickInSeconds()));
-        }
         if (player != null) {
             playerState.getStyleClass().add(player.isOnline() && player.isReady()
                     ? "player-ready" : player.isOnline() ? "player-waiting" : "player-offline");
         }
         VBox information = new VBox(5, name, playerState);
         if (player != null && player.getUserId() == hostId) {
-            Label host = new Label("★ Chủ phòng");
+            Label host = Icons.attach(new Label("Chủ phòng"), Icons.Glyph.STAR, 13);
+            host.setGraphicTextGap(4);
             host.getStyleClass().add("room-host");
             information.getChildren().addFirst(host);
         }
@@ -181,8 +254,12 @@ public class LobbyView extends VBox {
             kickButton.setOnAction(event -> confirmKick(player));
             information.getChildren().add(kickButton);
         }
-        Label mark = new Label(player != null && player.isReady() ? "✓" : "");
+        Label mark = new Label();
         mark.getStyleClass().add("ready-mark");
+        if (player != null && player.isReady()) {
+            Icons.attach(mark, Icons.Glyph.CHECK, 22);
+            mark.setAccessibleText("Đã sẵn sàng");
+        }
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox identity = new HBox(10, avatar, spacer, mark);
@@ -197,9 +274,15 @@ public class LobbyView extends VBox {
     public void update(RoomInfo room) {
         title.setText(String.format("Phòng %03d — %d/8 người", room.getRoomId(), room.getPlayers().size()));
         players.getChildren().clear();
-        countdowns.clear();
         playing = room.getStatus() == RoomStatus.PLAYING || room.getStatus() == RoomStatus.GAME_STARTING;
         boolean canKick = room.getHostId() == userId && !playing;
+        canInvite = !playing && room.getPlayers().size() < 8;
+        if (invitePanel != null) {
+            invitePanel.panel().setCanInvite(canInvite, playing ? "Trận đấu đã bắt đầu nên không mời thêm được."
+                    : "Phòng đã đủ 8 người.");
+        }
+        if (playing) { closeInvitePanel(); }
+        if (room.getStatus() != RoomStatus.GAME_STARTING) { stopCountdown(); }
         for (int index = 0; index < 8; index++) {
             PlayerInfo player = index < room.getPlayers().size() ? room.getPlayers().get(index) : null;
             VBox slot = playerSlot(player, index, room.getHostId(), canKick);
@@ -212,15 +295,10 @@ public class LobbyView extends VBox {
         playerCount.setText(room.getPlayers().size() + "/8");
         readyCount.setText(readyPlayers + "/" + room.getPlayers().size());
         readyButton.setText(ready ? "Hủy sẵn sàng" : "Sẵn sàng");
-        int ownKickIn = room.getPlayers().stream().filter(p -> p.getUserId() == userId)
-                .mapToInt(PlayerInfo::getKickInSeconds).findFirst().orElse(-1);
-        ownKickDeadline = ownKickIn >= 0 ? System.nanoTime() + ownKickIn * 1_000_000_000L : null;
-        if (ownKickDeadline != null) {
-            status.setText(ownWarning(ownKickIn));
-        } else if (room.getStatus() == RoomStatus.PLAYING) {
+        if (room.getStatus() == RoomStatus.PLAYING) {
             status.setText("Trận đấu đã bắt đầu.");
         } else if (room.getStatus() == RoomStatus.GAME_STARTING) {
-            status.setText("Tất cả đã sẵn sàng. Chuẩn bị bắt đầu!");
+            status.setText("Tất cả đã sẵn sàng!");
         } else if (room.getPlayers().size() < 2) {
             status.setText("Cần ít nhất 2 người và tất cả sẵn sàng để bắt đầu.");
         } else if (!ready) {
@@ -237,12 +315,40 @@ public class LobbyView extends VBox {
 
     public void setBusy(boolean busy) {
         readyButton.setDisable(busy || playing);
+        inviteButton.setDisable(busy || !canInvite);
         leaveButton.setDisable(busy);
         logoutButton.setDisable(busy);
     }
 
+    // `invite` gửi lời mời, `requestOnlineUsers` xin server danh sách người online (gọi lại mỗi 5 giây khi hộp thoại mở).
+    public void setOnInvite(Consumer<OnlineUser> invite, Runnable requestOnlineUsers) {
+        this.invite = invite;
+        this.requestOnlineUsers = requestOnlineUsers;
+    }
+
+    public void openInvitePanel() {
+        if (invitePanel == null) {
+            invitePanel = new OnlinePlayersDialog(this, Icons.Glyph.USER_PLUS, "Mời người chơi",
+                    "Danh sách tự làm mới mỗi 5 giây. Kéo phần đầu hộp thoại để di chuyển.",
+                    user -> invite.accept(user), () -> requestOnlineUsers.run());
+            invitePanel.panel().setCanInvite(canInvite, "Phòng đang chơi hoặc đã đủ người.");
+        }
+        invitePanel.open();
+    }
+
+    public void closeInvitePanel() {
+        if (invitePanel != null) { invitePanel.close(); }
+    }
+
+    public void showOnlineUsers(List<OnlineUser> users) {
+        if (invitePanel != null) { invitePanel.panel().setUsers(users); }
+    }
+
+    public OnlinePlayersPanel getOnlinePanel() {
+        return invitePanel == null ? null : invitePanel.panel();
+    }
+
     public void showMessage(String message) {
-        ownKickDeadline = null;
         status.setText(message);
     }
 }

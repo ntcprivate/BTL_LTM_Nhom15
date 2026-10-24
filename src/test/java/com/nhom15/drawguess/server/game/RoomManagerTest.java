@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoomManagerTest {
-    private final RoomManager manager = new RoomManager();
+    private final RoomManager manager = new RoomManager(null, System::nanoTime, RoomManager.StartTimer.IMMEDIATE);
 
     private UserInfo user(int id) { return new UserInfo(id, "player" + id, "USER"); }
     private RoomInfo room(int id) { return manager.getRooms().get(id - 1); }

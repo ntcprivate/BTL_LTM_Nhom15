@@ -8,9 +8,14 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 - Trang chủ sau đăng nhập với lối tắt vào phòng, lịch sử và hồ sơ.
 - Chọn avatar từ 9 tranh Van Gogh; avatar được lưu theo tài khoản và hiển thị trong phòng chờ.
 - Vào phòng, chọn chủ đề, sẵn sàng, vẽ và đoán từ, tính điểm và xếp hạng.
-- Người vào phòng đầu tiên là chủ phòng (★) và có thể mời người khác ra; người bị mời ra không vào lại được phòng đó cho tới khi phòng trống. Khi trong phòng đã có người sẵn sàng, ai chưa sẵn sàng sau 60 giây sẽ tự động được đưa ra khỏi phòng.
+- Người vào phòng đầu tiên là chủ phòng và có thể mời người khác ra; người bị mời ra không vào lại được phòng đó cho tới khi phòng trống. Người chưa sẵn sàng không bị tự động đưa ra; chỉ chủ phòng mới mời người khác ra được.
+- Khi mọi người trong phòng đã sẵn sàng, phòng chờ **đếm ngược 5 giây** rồi mới vào trận. Trong lúc đếm, ai bấm **Tôi chưa sẵn sàng!** thì trận không bắt đầu và cả phòng thấy tên người đó; khi mọi người sẵn sàng lại thì đếm lại từ đầu. Có người rời phòng giữa lúc đếm thì những người còn lại được đếm lại.
+- Trong phòng chờ, nút **Mời người chơi** hiện danh sách người đang online (đang rảnh / đang ở phòng nào / đang chơi). Ai trong phòng cũng mời được người đang rảnh; người được mời thấy hộp thoại **Vào phòng / Từ chối** (tự hết hạn sau 30 giây). Mỗi người chỉ mời lại cùng một người sau 10 giây.
+- Ở màn hình chọn phòng, nút **Xem danh sách** trong thẻ "Người đang online" cho xem ai đang online và đang ở đâu (chỉ xem, muốn mời thì vào phòng trước).
+- **Mất kết nối giữa trận** (rớt mạng, tắt game): client tự kết nối lại 5 lần, mỗi lần cách 2 giây, rồi đưa người chơi về đúng trận đang chơi với từ khóa, thời gian, gợi ý và điểm hiện tại. Nếu tắt hẳn game thì đăng nhập lại là tự vào lại trận, hoặc nhấp đúp vào phòng đang chơi của mình. Người chủ động bấm **Rời phòng** hoặc **Đăng xuất** khi đang chơi thì không vào lại được trận đó.
 - Khi vẽ có nút **Hoàn tác** (Ctrl+Z) để bỏ nét vẽ gần nhất hoặc khôi phục tranh vừa bị xóa (tối đa 20 bước).
 - Khi đoán, người chơi thấy gợi ý số chữ cái dạng `_ _ _   _ _ _`; sau 15 giây server mở thêm một chữ cái ngẫu nhiên.
+- Trong phiên đoán có nút **Báo cáo tranh** (khi tranh không đúng từ khóa, ví dụ viết chữ lên tranh). Khi **quá nửa** số người đoán đang online cùng báo cáo, người vẽ mất số điểm đã nhận ở vòng đó và không được cộng thêm; người đoán vẫn giữ điểm. Có thể báo cáo cả trong 3 giây công bố đáp án.
 - Lịch sử trận: thời gian, người tham gia, điểm, thứ hạng, từng vòng và các lượt đoán.
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.
 - ADMIN thêm, sửa, xóa chủ đề và từ khóa.

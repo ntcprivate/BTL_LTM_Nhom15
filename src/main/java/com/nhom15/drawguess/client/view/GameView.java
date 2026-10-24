@@ -45,12 +45,17 @@ public class GameView extends BorderPane {
     private final Slider width = new Slider(2, 24, 5);
     private final ToggleButton eraser = new ToggleButton("Tẩy");
     private final Button clear = new Button("Xóa tranh");
-    private final Button undo = new Button("↶ Hoàn tác");
+    private final Button undo = Icons.attach(new Button("Hoàn tác"), Icons.Glyph.UNDO, 16);
     // Lịch sử vẽ dưới dạng các nét (không chụp ảnh canvas mỗi lần nhấn chuột vì rất tốn GPU).
     // Hoàn tác = bỏ thao tác cuối rồi vẽ lại các nét còn lại.
     private final List<Stroke> strokes = new ArrayList<>();
     private Stroke currentStroke;
     private int undoableSteps;
+    private final Button report = Icons.attach(new Button("Báo cáo tranh"), Icons.Glyph.FLAG, 15);
+    private final Label reportStatus = new Label();
+    private final HBox reportBar = new HBox(10, report, reportStatus);
+    private Runnable onReport = () -> {};
+    private String drawerName = "";
     private final TextField answer = new TextField();
     private final Button guess = new Button("Đoán");
     private final HBox guessRow = new HBox(8, answer, guess);
@@ -59,7 +64,7 @@ public class GameView extends BorderPane {
     private final Button logout = new Button("Đăng xuất");
     private final ListView<ScoreEntry> scores = new ListView<>();
     private final ScaleTransition timerPulse = new ScaleTransition(Duration.millis(220), timer);
-    private final VBox tools = new VBox(8);
+    private final VBox tools = new VBox(6);
     private boolean drawing;
     private boolean finished;
     private int drawerId = -1;
@@ -77,7 +82,7 @@ public class GameView extends BorderPane {
         this.userId = userId;
         this.avatars = Map.copyOf(avatars);
         UiTheme.apply(this);
-        setPadding(new Insets(18));
+        setPadding(new Insets(10));
         category.getStyleClass().add("section-title");
         word.getStyleClass().add("game-word");
         hint.getStyleClass().add("game-hint");
@@ -92,8 +97,8 @@ public class GameView extends BorderPane {
 
         // Nút rời trận nằm ở đầu trang, tách xa ô đoán để tránh bấm nhầm.
         back.setOnAction(event -> returnToLobby.run());
-        leave.setOnAction(event -> confirmLeave("Rời phòng", leaveRoom));
-        logout.setOnAction(event -> confirmLeave("Đăng xuất", signOut));
+        leave.setOnAction(event -> confirmLeave("Rời phòng", Icons.Glyph.LOG_OUT, leaveRoom));
+        logout.setOnAction(event -> confirmLeave("Đăng xuất", Icons.Glyph.POWER, signOut));
         back.setVisible(false);
         back.setManaged(false);
         back.getStyleClass().add("primary-button");
@@ -103,13 +108,18 @@ public class GameView extends BorderPane {
         navigation.setAlignment(Pos.CENTER_RIGHT);
         navigation.getChildren().forEach(node -> ((Region) node).setMinWidth(Region.USE_PREF_SIZE));
 
-        VBox headingText = new VBox(5, category, word, hint);
+        // Chủ đề và từ khóa / tên tranh chung một dòng để thanh tiêu đề thấp hơn.
+        Label separator = new Label("•");
+        separator.getStyleClass().add("section-title");
+        HBox titleLine = new HBox(10, category, separator, word);
+        titleLine.setAlignment(Pos.BASELINE_LEFT);
+        VBox headingText = new VBox(2, titleLine, hint);
         Region headingSpacer = new Region();
         HBox.setHgrow(headingSpacer, Priority.ALWAYS);
         HBox heading = new HBox(14, headingText, headingSpacer, timer, navigation);
         heading.setAlignment(Pos.CENTER_LEFT);
-        heading.getStyleClass().add("header-card");
-        BorderPane.setMargin(heading, new Insets(0, 0, 16, 0));
+        heading.getStyleClass().addAll("header-card", "game-header");
+        BorderPane.setMargin(heading, new Insets(0, 0, 10, 0));
         setTop(heading);
 
         clearCanvas();
@@ -132,14 +142,22 @@ public class GameView extends BorderPane {
         // Hai hàng công cụ để chữ trên nút không bị cắt ở cửa sổ nhỏ.
         Label strokeLabel = new Label("Nét");
         strokeLabel.setMinWidth(Region.USE_PREF_SIZE);
+        strokeLabel.setLabelFor(width);
+        width.setAccessibleText("Độ dày nét vẽ");
+        color.setAccessibleText("Màu bút");
+        color.setTooltip(new Tooltip("Màu bút"));
         width.setPrefWidth(160);
         HBox.setHgrow(width, Priority.ALWAYS);
         color.getStyleClass().add("drawing-color");
         HBox brushRow = new HBox(10, color, strokeLabel, width);
         brushRow.setAlignment(Pos.CENTER_LEFT);
         eraser.getStyleClass().add("tool-toggle");
-        eraser.selectedProperty().addListener((observable, wasSelected, selected) ->
-                eraser.setText(selected ? "✓ Đang tẩy" : "Tẩy"));
+        javafx.scene.Node eraserOn = Icons.icon(Icons.Glyph.CHECK, 14, eraser.textFillProperty());
+        eraser.setGraphicTextGap(6);
+        eraser.selectedProperty().addListener((observable, wasSelected, selected) -> {
+            eraser.setText(selected ? "Đang tẩy" : "Tẩy");
+            eraser.setGraphic(selected ? eraserOn : null);
+        });
         eraser.setTooltip(new Tooltip("Bật để tẩy, bấm lần nữa để vẽ tiếp"));
         undo.getStyleClass().add("secondary-button");
         undo.setTooltip(new Tooltip("Quay lại nét vẽ trước (Ctrl+Z)"));
@@ -151,10 +169,26 @@ public class GameView extends BorderPane {
         tools.getChildren().addAll(brushRow, actionRow);
         tools.getStyleClass().add("toolbar");
         tools.setMaxWidth(500);
-        VBox left = new VBox(10, board, tools);
+        // Trong phiên đoán, thanh báo cáo thay chỗ thanh công cụ vẽ (không dùng tới khi đoán).
+        report.getStyleClass().addAll("ghost-button", "report-button");
+        report.setMinWidth(Region.USE_PREF_SIZE);
+        report.setTooltip(new Tooltip("Báo cáo khi tranh không liên quan tới từ khóa hoặc không phù hợp. "
+                + "Quá nửa người đoán báo cáo thì người vẽ không được điểm vòng này."));
+        report.setOnAction(event -> confirmReport());
+        reportStatus.getStyleClass().add("report-status");
+        reportStatus.setWrapText(true);
+        reportStatus.setMinHeight(Region.USE_PREF_SIZE);
+        HBox.setHgrow(reportStatus, Priority.ALWAYS);
+        reportBar.getStyleClass().addAll("toolbar", "report-bar");
+        reportBar.setAlignment(Pos.CENTER_LEFT);
+        reportBar.setMaxWidth(500);
+        showReportBar(false);
+        VBox left = new VBox(8, board, tools, reportBar);
         left.setAlignment(Pos.TOP_CENTER);
 
         answer.setPromptText("Nhập đáp án...");
+        // Ô đoán không có nhãn hiển thị nên cần tên riêng cho trình đọc màn hình.
+        answer.setAccessibleText("Đáp án của bạn");
         guess.setOnAction(event -> sendGuess.run());
         answer.setOnAction(event -> sendGuess.run());
         guess.getStyleClass().add("primary-button");
@@ -208,18 +242,52 @@ public class GameView extends BorderPane {
         canvas.setOnMouseReleased(event -> currentStroke = null);
     }
 
-    private void confirmLeave(String action, Runnable confirmed) {
-        if (finished) {
-            confirmed.run();
-            return;
-        }
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+    private void confirmLeave(String action, Icons.Glyph glyph, Runnable confirmed) {
+        if (finished || ThemedDialog.confirm(this, ThemedDialog.Tone.DANGER, glyph, action + " khi đang chơi?",
                 "Trận đấu chưa kết thúc. Nếu " + action.toLowerCase() + " bây giờ, bạn sẽ bỏ dở trận "
-                        + "và không thể quay lại.", ButtonType.OK, ButtonType.CANCEL);
-        confirm.setTitle(action);
-        confirm.setHeaderText(action + " khi đang chơi?");
-        if (getScene() != null) { confirm.initOwner(getScene().getWindow()); }
-        confirm.showAndWait().filter(ButtonType.OK::equals).ifPresent(ignored -> confirmed.run());
+                        + "và không thể quay lại.", action, "Ở lại chơi")) {
+            confirmed.run();
+        }
+    }
+
+    private void confirmReport() {
+        if (ThemedDialog.confirm(this, ThemedDialog.Tone.WARNING, Icons.Glyph.FLAG,
+                "Báo cáo tranh của " + drawerName + "?",
+                "Chỉ báo cáo khi tranh không liên quan tới từ khóa hoặc có nội dung không phù hợp. "
+                        + "Nếu quá nửa người đoán cùng báo cáo, người vẽ sẽ không được điểm ở vòng này.",
+                "Báo cáo", "Hủy")) {
+            report.setDisable(true);
+            onReport.run();
+        }
+    }
+
+    private void showReportBar(boolean guessing) {
+        tools.setVisible(!guessing);
+        tools.setManaged(!guessing);
+        reportBar.setVisible(guessing);
+        reportBar.setManaged(guessing);
+    }
+
+    public void setOnReport(Runnable action) {
+        onReport = action;
+    }
+
+    // Đã gửi báo cáo thành công (hoặc server cho biết đã báo cáo trước đó).
+    public void markReported() {
+        report.setText("Đã báo cáo");
+        report.setDisable(true);
+    }
+
+    public void showReportStatus(ReportStatus status) {
+        reportStatus.getStyleClass().remove("report-rejected");
+        if (status.isRejected()) {
+            reportStatus.setText("Tranh đã bị báo cáo: " + drawerName + " không được điểm ở vòng này.");
+            reportStatus.getStyleClass().add("report-rejected");
+            report.setDisable(true);
+        } else {
+            reportStatus.setText("Báo cáo: " + status.getReports() + "/" + status.getNeeded()
+                    + " (cần quá nửa người đoán)");
+        }
     }
 
     // Một nét vẽ (màu, độ dày, các điểm); CLEAR đánh dấu lần bấm "Xóa tranh".
@@ -287,6 +355,7 @@ public class GameView extends BorderPane {
         scorePhase = GamePhase.DRAWING;
         scores.refresh();
         UiTheme.status(status, "info");
+        showReportBar(false);
         setDrawing(true);
         lockGuess();
     }
@@ -327,6 +396,15 @@ public class GameView extends BorderPane {
         showHint(round.getHint(), false);
         answer.clear();
         boolean owner = round.getDrawerId() == userId;
+        drawerName = round.getDrawerName();
+        showReportBar(true);
+        report.setText("Báo cáo tranh");
+        report.setDisable(owner);
+        report.setVisible(!owner);
+        report.setManaged(!owner);
+        reportStatus.getStyleClass().remove("report-rejected");
+        reportStatus.setText(owner ? "Người đoán có thể báo cáo nếu tranh không đúng từ khóa."
+                : "Tranh không đúng từ khóa? Bạn có thể báo cáo.");
         answer.setDisable(owner);
         guess.setDisable(owner);
         status.setText(owner ? "Bạn không được đoán tranh của chính mình." : "Bạn có tối đa 3 lần đoán.");
@@ -428,6 +506,8 @@ public class GameView extends BorderPane {
         picture.setVisible(false);
         resultPanel.setVisible(true);
         tools.setVisible(false);
+        reportBar.setVisible(false);
+        reportBar.setManaged(false);
         back.setVisible(true);
         back.setManaged(true);
     }
@@ -438,8 +518,9 @@ public class GameView extends BorderPane {
         title.getStyleClass().add("result-title");
         String winners = players.stream().filter(p -> p.getRank() == 1).map(ScoreEntry::getUsername)
                 .reduce((a, b) -> a + ", " + b).orElse("");
-        Label winner = new Label(winners.isEmpty() ? "" : "★ Người thắng: " + winners);
+        Label winner = new Label(winners.isEmpty() ? "" : "Người thắng: " + winners);
         winner.getStyleClass().add("result-winner");
+        if (!winners.isEmpty()) { Icons.attach(winner, Icons.Glyph.STAR, 16); }
         winner.setWrapText(true);
         HBox podium = new HBox(14);
         podium.setAlignment(Pos.BOTTOM_CENTER);
@@ -499,6 +580,7 @@ public class GameView extends BorderPane {
         private final AvatarView avatar = new AvatarView(null, 30);
         private final Label name = new Label();
         private final Label badge = new Label();
+        private final javafx.scene.Node solvedIcon = Icons.icon(Icons.Glyph.CHECK, 12, badge.textFillProperty());
         private final Label points = new Label();
         private final HBox row;
 
@@ -542,13 +624,14 @@ public class GameView extends BorderPane {
                 // Tác giả của bức tranh đang được đoán, không phải người đang vẽ.
                 state = "Người vẽ"; style = "score-badge-drawer";
             } else if (scorePhase == GamePhase.GUESSING && player.isSolvedRound()) {
-                state = "✓ Đoán đúng"; style = "score-badge-solved";
+                state = "Đoán đúng"; style = "score-badge-solved";
             } else if (scorePhase == GamePhase.GUESSING) {
                 state = "Đang đoán"; style = "score-badge-guessing";
             } else {
                 state = ""; style = null;
             }
             badge.setText(state);
+            badge.setGraphic("score-badge-solved".equals(style) ? solvedIcon : null);
             badge.setVisible(!state.isEmpty());
             badge.setManaged(!state.isEmpty());
             badge.getStyleClass().removeAll("score-badge-solved", "score-badge-drawer", "score-badge-offline",

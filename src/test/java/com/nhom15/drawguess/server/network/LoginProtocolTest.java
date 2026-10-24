@@ -260,6 +260,35 @@ class LoginProtocolTest {
     }
 
     @Test
+    void staleSessionCanOnlyBeTakenOverWithItsResumeToken() throws Exception {
+        SessionManager sessions = new SessionManager();
+        try (ConnectionPair first = new ConnectionPair(acceptingDao(PLAYER), sessions);
+             ConnectionPair stranger = new ConnectionPair(acceptingDao(PLAYER), sessions);
+             ConnectionPair resumed = new ConnectionPair(acceptingDao(PLAYER), sessions)) {
+            assertEquals(MessageType.LOGIN_SUCCESS, first.login().getType());
+            Message token = first.request(new Message(MessageType.GET_RESUME_TOKEN));
+            assertEquals(MessageType.RESUME_TOKEN, token.getType());
+            String code = assertInstanceOf(String.class, token.getData());
+
+            assertFailure(stranger.login(new LoginRequest("player", "secret", "ma-sai")), "USER_ALREADY_ONLINE");
+            assertEquals(MessageType.LOGIN_SUCCESS, resumed.login(new LoginRequest("player", "secret", code)).getType());
+            first.awaitClosedByServer();
+            // Mã đã dùng không dùng lại được; phiên mới có mã mới.
+            assertFailure(stranger.login(new LoginRequest("player", "secret", code)), "USER_ALREADY_ONLINE");
+            assertNotEquals(code, resumed.request(new Message(MessageType.GET_RESUME_TOKEN)).getData());
+        }
+    }
+
+    @Test
+    void resumeTokenIsOnlyGivenToLoggedInConnections() throws Exception {
+        try (ConnectionPair pair = new ConnectionPair(acceptingDao(PLAYER), new SessionManager())) {
+            Message refused = pair.request(new Message(MessageType.GET_RESUME_TOKEN));
+            assertEquals(MessageType.ACTION_FAILED, refused.getType());
+            assertEquals("NOT_LOGGED_IN", refused.getData());
+        }
+    }
+
+    @Test
     void disconnectReleasesSession() throws Exception {
         SessionManager sessions = new SessionManager();
         try (ConnectionPair first = new ConnectionPair(acceptingDao(PLAYER), sessions);
@@ -349,6 +378,13 @@ class LoginProtocolTest {
             Message response = client.receiveMessage();
             assertNotNull(response);
             return response;
+        }
+
+        // Server đóng kết nối này (ví dụ khi phiên bị máy khác nối lại).
+        void awaitClosedByServer() throws InterruptedException {
+            handler.join(2000);
+            assertFalse(handler.isAlive());
+            assertNull(client.receiveMessage());
         }
 
         void disconnectAndWait() throws InterruptedException {

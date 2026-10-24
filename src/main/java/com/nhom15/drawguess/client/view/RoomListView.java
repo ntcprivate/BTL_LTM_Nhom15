@@ -1,5 +1,6 @@
 package com.nhom15.drawguess.client.view;
 
+import com.nhom15.drawguess.common.protocol.OnlineUser;
 import com.nhom15.drawguess.common.protocol.RoomInfo;
 import com.nhom15.drawguess.common.protocol.RoomStatus;
 import com.nhom15.drawguess.common.protocol.UserInfo;
@@ -32,6 +33,9 @@ public class RoomListView extends VBox {
     private final Label status = new Label("Chọn phòng để tham gia.");
     private final AvatarView userAvatar;
     private final Label userName = new Label();
+    private final Button showOnline = Icons.attach(new Button("Xem danh sách"), Icons.Glyph.USERS, 14);
+    private Runnable requestOnlineUsers = () -> {};
+    private OnlinePlayersDialog onlineList;
 
     public RoomListView(UserInfo user, Runnable join, Runnable refresh, Runnable home) {
         UiTheme.apply(this);
@@ -70,7 +74,11 @@ public class RoomListView extends VBox {
         HBox statistics = new HBox(12,
                 statistic(availableRooms, "PHÒNG CÓ THỂ VÀO"),
                 statistic(activeRooms, "TRẬN ĐANG DIỄN RA"),
-                statistic(onlinePlayers, "NGƯỜI ĐANG ONLINE"));
+                actionStatistic(onlinePlayers, "NGƯỜI ĐANG ONLINE", showOnline));
+        showOnline.getStyleClass().addAll("ghost-button", "stat-action");
+        showOnline.setMinWidth(Region.USE_PREF_SIZE);
+        showOnline.setAccessibleText("Xem danh sách người đang online");
+        showOnline.setOnAction(event -> openOnlineList());
 
         rooms.setPrefHeight(430);
         VBox.setVgrow(rooms, Priority.ALWAYS);
@@ -157,6 +165,44 @@ public class RoomListView extends VBox {
         card.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(card, Priority.ALWAYS);
         return card;
+    }
+
+    // Thẻ thống kê có thêm một nút thao tác ở bên phải.
+    private HBox actionStatistic(Label value, String caption, Button action) {
+        VBox text = statistic(value, caption);
+        text.getStyleClass().remove("stat-card");
+        HBox card = new HBox(10, text, action);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.getStyleClass().add("stat-card");
+        card.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        return card;
+    }
+
+    // `request` xin server danh sách người online; gọi lại mỗi 5 giây khi hộp thoại đang mở.
+    public void setOnShowOnline(Runnable request) {
+        requestOnlineUsers = request;
+    }
+
+    public void openOnlineList() {
+        if (onlineList == null) {
+            onlineList = new OnlinePlayersDialog(this, Icons.Glyph.USERS, "Người đang online",
+                    "Những người chơi khác đang đăng nhập. Danh sách tự làm mới mỗi 5 giây.",
+                    null, () -> requestOnlineUsers.run());
+        }
+        onlineList.open();
+    }
+
+    public void closeOnlineList() {
+        if (onlineList != null) { onlineList.close(); }
+    }
+
+    public void showOnlineUsers(List<OnlineUser> users) {
+        if (onlineList != null) { onlineList.panel().setUsers(users); }
+    }
+
+    public OnlinePlayersPanel getOnlinePanel() {
+        return onlineList == null ? null : onlineList.panel();
     }
 
     public RoomInfo getSelectedRoom() { return rooms.getSelectionModel().getSelectedItem(); }

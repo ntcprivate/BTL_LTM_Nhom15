@@ -40,10 +40,10 @@ Muốn 2 người chơi trên cùng máy thì chạy lệnh này ở 2 terminal;
 
 ### Bước 3: Đăng nhập và chơi
 1. Đăng nhập bằng một tài khoản có sẵn (xem mục 3). Máy chủ để mặc định `localhost:5555`.
-2. Chọn **Vào phòng chơi**, rồi **nhấp đúp vào cùng một phòng** (ví dụ Phòng 001).
+2. Chọn **Vào phòng chơi**, rồi **nhấp đúp vào cùng một phòng** (ví dụ Phòng 001). Hoặc một người vào phòng trước, bấm **Mời người chơi** và mời những người khác; người được mời bấm **Vào phòng**.
 3. Mọi người bấm **Sẵn sàng**. Trận bắt đầu khi tất cả đã sẵn sàng (ít nhất 2 người).
 4. **Vẽ** từ khóa của mình trong 60 giây.
-5. **Đoán** lần lượt tranh của từng người: mỗi vòng 30 giây, tối đa 3 lần đoán. Sau 15 giây, gợi ý sẽ mở thêm 1 chữ cái.
+5. **Đoán** lần lượt tranh của từng người: mỗi vòng 30 giây, tối đa 3 lần đoán. Sau 15 giây, gợi ý sẽ mở thêm 1 chữ cái. Tranh không đúng từ khóa thì bấm **Báo cáo tranh**; quá nửa người đoán báo cáo thì người vẽ không được điểm vòng đó.
 6. Hết trận, xem bục xếp hạng rồi bấm **Về phòng chờ** để chơi tiếp.
 
 ### Bước 4: Tắt demo

@@ -280,7 +280,7 @@ class GameManagerTest {
             @Override public GamePlan selectWords(int playerCount) { return null; }
         };
         try (GameManager game = new GameManager(dao, new DrawingStore(directory), System::nanoTime, false, new com.nhom15.drawguess.server.dao.HistoryDAO() { @Override public void save(HistoryData.Detail d) {} })) {
-            RoomManager rooms = new RoomManager(game);
+            RoomManager rooms = new RoomManager(game, System::nanoTime, RoomManager.StartTimer.IMMEDIATE);
             List<Message> messages = new ArrayList<>();
             for (int id = 1; id <= 4; id++) {
                 rooms.join(new UserInfo(id, "player" + id, "USER"), 1, messages::add);
@@ -293,6 +293,119 @@ class GameManagerTest {
             assertTrue(room.getPlayers().stream().noneMatch(PlayerInfo::isReady));
             assertEquals("NOT_ENOUGH_WORDS", messages.stream().filter(m -> m.getType() == MessageType.GAME_ERROR).findFirst().orElseThrow().getData());
             assertTrue(messages.stream().noneMatch(m -> m.getType() == MessageType.START_GAME));
+        }
+    }
+
+    @Test
+    void moreThanHalfOfGuessersReportingRemovesDrawerPointsForThatRoundOnly() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.guess(2, "Con mèo", 1);
+            assertEquals(1, f.score(1), "Người vẽ được +1 khi có người đoán đúng");
+
+            f.report(2, 0);
+            assertEquals("REPORT_DRAWING", f.last(2, MessageType.ACTION_SUCCESS).getData());
+            ReportStatus status = f.reportStatus(3);
+            assertEquals(1, status.getReports());
+            assertEquals(2, status.getNeeded(), "3 người đoán: cần ít nhất 2 phiếu (quá nửa)");
+            assertFalse(status.isRejected());
+            assertEquals(1, f.score(1), "Chưa đủ phiếu thì người vẽ vẫn giữ điểm");
+
+            f.report(2, 0);
+            assertEquals("ALREADY_REPORTED", f.last(2, MessageType.ACTION_FAILED).getData());
+            f.report(1, 0);
+            assertEquals("OWN_DRAWING", f.last(1, MessageType.ACTION_FAILED).getData());
+
+            f.report(3, 0);
+            assertTrue(f.reportStatus(4).isRejected());
+            assertEquals(0, f.score(1), "Đủ phiếu thì người vẽ mất điểm đã nhận ở vòng này");
+            int guesserBefore = f.score(2);
+            f.guess(3, "Con mèo", 3);
+            assertEquals(0, f.score(1), "Tranh bị loại thì người vẽ không được cộng thêm");
+            assertEquals(guesserBefore, f.score(2), "Người đoán giữ nguyên điểm của mình");
+            assertEquals(1, f.score(3));
+
+            f.advance(30);
+            f.advance(3);
+            assertEquals(1, f.round().getRoundIndex());
+            f.roundStarted = f.clock.get();
+            int drawerBefore = f.score(2);
+            f.guess(1, "Con chó", 1);
+            assertEquals(drawerBefore + 1, f.score(2), "Vòng mới không còn bị ảnh hưởng bởi báo cáo cũ");
+            assertEquals(0, f.reportStatuses(4, 1), "Vòng mới bắt đầu với 0 báo cáo");
+            f.report(3, 0);
+            assertEquals("REPORT_NOT_ACTIVE", f.last(3, MessageType.ACTION_FAILED).getData());
+        }
+    }
+
+    @Test
+    void reportsCanBeSentDuringAnswerRevealAndCountOnlyOnlineGuessers() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.guess(2, "Con mèo", 1);
+            f.guess(3, "Con mèo", 2);
+            f.guess(4, "Con mèo", 3);
+            assertEquals(3, f.score(1));
+            // Mọi người đã đoán xong: vòng chuyển sang công bố đáp án nhưng vẫn còn báo cáo được.
+            f.report(2, 0);
+            assertEquals(2, f.reportStatus(2).getNeeded());
+            f.game.disconnect(1, 4);
+            f.game.disconnect(1, 3);
+            ReportStatus status = f.reportStatus(2);
+            assertEquals(1, status.getNeeded(), "Chỉ còn 1 người đoán online");
+            assertTrue(status.isRejected());
+            assertEquals(0, f.score(1));
+        }
+    }
+
+    @Test
+    void reconnectingGuesserGetsCurrentRoundHintTimeAndOwnLockedState() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.guess(2, "Con mèo", 3);
+            f.game.disconnect(1, 2);
+            f.advance(16); // 19 giây sau khi vòng bắt đầu: đã mở gợi ý.
+            String hint = ((RoundHint) f.last(1, MessageType.HINT).getData()).getHint();
+            f.messages.get(2).clear();
+
+            f.game.reconnect(1, 2, f.sender(2));
+            assertEquals("Con chó", f.prompt(2).getWord(), "Người vào lại vẫn thấy từ của chính mình");
+            RoundInfo round = (RoundInfo) f.last(2, MessageType.ROUND_START).getData();
+            assertEquals(0, round.getRoundIndex());
+            assertEquals(1, round.getDrawerId());
+            assertEquals(11, round.getSeconds());
+            assertEquals(hint, round.getHint());
+            assertTrue(f.guessResult(2).isCorrect() && f.guessResult(2).isLocked(), "Đã đoán đúng trước khi rớt mạng");
+            assertTrue(f.entry(2).isOnline());
+            assertEquals(2, f.score(2), "Điểm đã có được giữ nguyên");
+        }
+    }
+
+    @Test
+    void reconnectingDuringUploadAsksForTheDrawingAgain() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.advance(60);
+            f.upload(1, f.png);
+            f.game.disconnect(1, 3);
+            f.messages.get(3).clear();
+            f.game.reconnect(1, 3, f.sender(3));
+            assertEquals(0, f.prompt(3).getSeconds());
+            assertEquals(f.matchId, f.last(3, MessageType.SUBMIT_DRAW).getData());
+            f.upload(3, f.png);
+            assertEquals("DRAW_UPLOAD", f.last(3, MessageType.ACTION_SUCCESS).getData());
+        }
+    }
+
+    @Test
+    void reconnectingDuringDrawingKeepsTheRemainingTime() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.advance(20);
+            f.game.disconnect(1, 4);
+            f.messages.get(4).clear();
+            f.game.reconnect(1, 4, f.sender(4));
+            assertEquals("Con hổ", f.prompt(4).getWord());
+            assertEquals(40, f.prompt(4).getSeconds());
+            assertTrue(f.messages.get(4).stream().noneMatch(m -> m.getType() == MessageType.ROUND_START));
         }
     }
 
@@ -338,6 +451,12 @@ class GameManagerTest {
             return scores.stream().map(ScoreEntry.class::cast).filter(s -> s.getUserId() == id).findFirst().orElseThrow();
         }
         void advance(int seconds) { clock.addAndGet(seconds * 1_000_000_000L); game.tick(1); }
+        void report(int id, int round) { game.report(1, id, new ReportRequest(matchId, round), sender(id)); }
+        ReportStatus reportStatus(int id) { return (ReportStatus) last(id, MessageType.REPORT_STATUS).getData(); }
+        long reportStatuses(int id, int round) {
+            return messages.get(id).stream().filter(m -> m.getType() == MessageType.REPORT_STATUS
+                    && ((ReportStatus) m.getData()).getRoundIndex() == round).count();
+        }
         void upload(int id, byte[] image) { game.upload(1, id, new DrawUpload(matchId, image), sender(id)); }
         void startGuessing() {
             advance(60);

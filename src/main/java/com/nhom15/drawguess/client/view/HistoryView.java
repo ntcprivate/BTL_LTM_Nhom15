@@ -70,6 +70,7 @@ public class HistoryView extends VBox {
         ScrollPane detailScroll=new ScrollPane(overview); detailScroll.setFitToWidth(true);
         rounds.setMaxWidth(Double.MAX_VALUE);
         rounds.setPromptText("Chọn vòng để xem tranh");
+        rounds.setAccessibleText("Chọn vòng để xem tranh");
         rounds.getStyleClass().add("history-rounds");
         rounds.setConverter(new StringConverter<>() {
             @Override public String toString(HistoryData.Round r) {
@@ -205,8 +206,9 @@ public class HistoryView extends VBox {
             Label player = new Label(guess.username()); player.getStyleClass().add("guess-player");
             Label answer = new Label(guess.answer()); answer.getStyleClass().add("guess-answer");
             Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-            Label result = new Label(guess.correct() ? "✓ Đúng" : "Sai");
+            Label result = new Label(guess.correct() ? "Đúng" : "Sai");
             result.getStyleClass().addAll("guess-result", guess.correct() ? "guess-correct" : "guess-wrong");
+            if (guess.correct()) { Icons.attach(result, Icons.Glyph.CHECK, 12).setGraphicTextGap(4); }
             Label elapsed = new Label(String.format("%.2f giây", guess.elapsedSeconds()));
             elapsed.getStyleClass().add("guess-time");
             HBox card = new HBox(8, player, answer, spacer, elapsed, result);

@@ -86,7 +86,9 @@ public final class HomeView extends VBox {
         Label heading = new Label(title); heading.getStyleClass().add("dashboard-title");
         Label text = new Label(description); text.getStyleClass().add("dashboard-description");
         text.setWrapText(true);
-        Label open = new Label("Mở ngay  →"); open.getStyleClass().add("dashboard-open");
+        Label open = Icons.attach(new Label("Mở ngay"), Icons.Glyph.ARROW_RIGHT, 14);
+        open.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+        open.getStyleClass().add("dashboard-open");
         VBox graphic = new VBox(8, eyebrow, heading, text, open);
         graphic.setAlignment(Pos.CENTER);
         graphic.getStyleClass().add("dashboard-copy-panel");

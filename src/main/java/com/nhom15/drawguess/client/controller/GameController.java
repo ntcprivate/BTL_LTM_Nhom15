@@ -29,8 +29,13 @@ public class GameController {
         this.send = send;
         matchId = prompt.getMatchId();
         view = new GameView(userId, avatars, this::guess, back, leave, logout);
+        view.setOnReport(() -> send.accept(new Message(MessageType.REPORT_DRAWING, new ReportRequest(matchId, round))));
         view.showDrawing(prompt);
         UiTheme.show(root, view);
+    }
+
+    public void showMessage(String message) {
+        view.showMessage(message);
     }
 
     private void guess() {
@@ -105,13 +110,21 @@ public class GameController {
                     view.showMessage("Đáp án: " + answer.getWord());
                 }
             }
+            case REPORT_STATUS -> {
+                if (message.getData() instanceof ReportStatus status && matchId.equals(status.getMatchId())
+                        && status.getRoundIndex() == round) { view.showReportStatus(status); }
+            }
             case GAME_RESULT -> {
                 if (message.getData() instanceof GameResult result && matchId.equals(result.getMatchId())) { view.showResult(result); }
             }
             case ACTION_SUCCESS -> {
                 if ("DRAW_UPLOAD".equals(message.getData())) { view.showMessage("Đã gửi tranh. Đang chờ các người chơi khác."); }
+                if ("REPORT_DRAWING".equals(message.getData())) { view.markReported(); }
             }
-            case ACTION_FAILED, GAME_ERROR -> view.showMessage(errorMessage(String.valueOf(message.getData())));
+            case ACTION_FAILED, GAME_ERROR -> {
+                if ("ALREADY_REPORTED".equals(message.getData())) { view.markReported(); }
+                view.showMessage(errorMessage(String.valueOf(message.getData())));
+            }
             default -> { }
         }
     }
@@ -125,6 +138,9 @@ public class GameController {
             case "HISTORY_STORAGE_ERROR" -> "Không lưu được lịch sử. Hãy chạy history.sql và kiểm tra MySQL.";
             case "DRAWING_STORAGE_ERROR" -> "Server không lưu được tranh. Trận đấu phải kết thúc.";
             case "ALREADY_UPLOADED" -> "Tranh của bạn đã được gửi.";
+            case "REPORT_NOT_ACTIVE" -> "Vòng này đã kết thúc nên không báo cáo được nữa.";
+            case "ALREADY_REPORTED" -> "Bạn đã báo cáo tranh này rồi.";
+            case "OWN_DRAWING" -> "Bạn không thể báo cáo tranh của chính mình.";
             default -> "Không thực hiện được yêu cầu trong trận đấu.";
         };
     }

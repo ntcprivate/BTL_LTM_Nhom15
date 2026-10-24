@@ -22,7 +22,7 @@ public class DemoServerMain {
         DrawingStore drawings = new DrawingStore(Path.of("server-data", "demo-drawings"));
         GameManager gameManager = new GameManager(store.wordDAO(), drawings, System::nanoTime, true, store.historyDAO());
         Runtime.getRuntime().addShutdownHook(new Thread(gameManager::close, "Game-Shutdown"));
-        RoomManager roomManager = new RoomManager(gameManager, System::nanoTime, true);
+        RoomManager roomManager = new RoomManager(gameManager);
         SessionManager sessionManager = new SessionManager();
         HistoryImageService historyImages = new HistoryImageService(store.historyDAO(), drawings);
         int clientCounter = 0;
@@ -50,7 +50,6 @@ public class DemoServerMain {
                     + ". Có thể server khác đang chạy.");
         } finally {
             gameManager.close();
-            roomManager.close();
         }
     }
 }

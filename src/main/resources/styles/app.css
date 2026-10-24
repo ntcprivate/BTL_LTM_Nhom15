@@ -92,7 +92,7 @@
     -fx-border-radius: 10px;
     -fx-border-width: 1px;
     -fx-padding: 10px 12px;
-    -fx-prompt-text-fill: #8b8b80;
+    -fx-prompt-text-fill: #716e66;
 }
 
 .text-field:focused,
@@ -437,7 +437,7 @@
 
 .kick-button {
     -fx-font-size: 12px;
-    -fx-padding: 3px 9px;
+    -fx-padding: 6px 12px;
 }
 
 .canvas-frame {
@@ -927,5 +927,331 @@
 
 /* B15: trạng thái riêng của từng khối trong màn hình quản trị. */
 .card-status {
+    -fx-font-size: 13px;
+}
+
+/* F5: ô số phòng vẫn nhìn rõ khi dòng phòng đang được chọn (nền dòng cũng là xanh đậm). */
+.list-cell:selected .room-number {
+    -fx-background-color: #ffe08a;
+    -fx-text-fill: #173f84;
+}
+
+/* F8: vùng bấm tối thiểu ~24px trở lên (WCAG 2.5.8) cho các điều khiển nhỏ. */
+.hyperlink {
+    -fx-padding: 4px 6px;
+}
+
+.check-box {
+    -fx-padding: 6px 4px;
+}
+
+.check-box > .box {
+    -fx-padding: 4px;
+}
+
+.drawing-color {
+    -fx-min-height: 34px;
+    -fx-pref-height: 34px;
+}
+
+.slider {
+    -fx-padding: 8px 0;
+}
+
+.slider > .thumb {
+    -fx-padding: 9px;
+}
+
+/* F1: thanh tiêu đề và thanh công cụ của màn hình game gọn hơn để vừa cửa sổ laptop (1280x721). */
+.game-header {
+    -fx-padding: 10px 18px;
+}
+
+.game-header .game-hint {
+    -fx-font-size: 18px;
+}
+
+.toolbar {
+    -fx-padding: 6px 10px;
+}
+
+.toolbar .button,
+.toolbar .toggle-button {
+    -fx-padding: 6px 14px;
+}
+
+/* F9–F12: form có nhãn nối với ô, lỗi ngay dưới ô, nút hiện/ẩn mật khẩu. */
+.text-field:invalid,
+.password-field:invalid {
+    -fx-border-color: #be123c;
+    -fx-border-width: 1.5px;
+    -fx-background-color: #fff7f8;
+}
+
+.text-field:invalid:focused,
+.password-field:invalid:focused {
+    -fx-effect: dropshadow(gaussian, rgba(190, 18, 60, 0.22), 9, 0.2, 0, 0);
+}
+
+.field-error {
+    -fx-text-fill: #be123c;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.password-field.password-input {
+    -fx-padding: 10px 46px 10px 12px;
+}
+
+.password-toggle {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-border-color: transparent;
+    -fx-padding: 6px;
+    -fx-min-width: 34px;
+    -fx-min-height: 34px;
+    -fx-text-fill: #4b5563;
+}
+
+.password-toggle:hover,
+.password-toggle:selected {
+    -fx-background-color: rgba(29, 78, 216, 0.10);
+    -fx-text-fill: #1d4ed8;
+}
+
+.password-toggle:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
+}
+
+/* Báo cáo tranh trong phiên đoán. */
+.report-bar {
+    -fx-spacing: 10px;
+}
+
+.report-status {
+    -fx-text-fill: #4b5563;
+    -fx-font-size: 12px;
+}
+
+.report-status.report-rejected {
+    -fx-text-fill: #be123c;
+    -fx-font-weight: 700;
+}
+
+/* Danh sách người đang online để mời vào phòng. */
+.online-panel {
+    -fx-padding: 4px;
+}
+
+.online-name {
+    -fx-text-fill: #173f73;
+    -fx-font-weight: 700;
+}
+
+.online-state {
+    -fx-font-size: 12px;
+}
+
+.online-free { -fx-text-fill: #4d6812; }
+.online-busy { -fx-text-fill: #62657a; }
+
+.invite-button {
+    -fx-padding: 6px 12px;
+    -fx-font-size: 12px;
+}
+
+/* Hộp thoại theo chủ đề: thẻ kem viền vàng trên cửa sổ trong suốt; lề 30px chứa bóng đổ của thẻ.
+   Bóng đậm và rộng hơn bóng của các thẻ (28px, lệch 9px) vì hộp thoại nằm trên cùng. */
+.dialog-pane.themed-dialog {
+    -fx-background-color: rgba(255, 249, 224, 0.99);
+    -fx-background-insets: 30px;
+    -fx-background-radius: 20px;
+    -fx-border-color: #d6a93d;
+    -fx-border-insets: 30px;
+    -fx-border-radius: 20px;
+    -fx-border-width: 1px;
+    -fx-padding: 30px;
+    -fx-pref-width: 524px;
+    -fx-effect: dropshadow(gaussian, rgba(2, 10, 32, 0.6), 32, 0.24, 0, 10);
+}
+
+/* Lớp tối phủ lên màn hình phía sau khi hộp thoại chặn thao tác đang mở. */
+.dialog-scrim {
+    -fx-background-color: rgba(2, 10, 30, 0.45);
+}
+
+.themed-dialog > .dialog-header {
+    -fx-padding: 24px 26px 10px 24px;
+    -fx-cursor: move;
+}
+
+/* Thanh đếm ngược thẳng hàng với chữ (bỏ qua cột huy hiệu 44px + khoảng cách 16px). */
+.themed-dialog > .dialog-body {
+    -fx-padding: 6px 26px 4px 84px;
+}
+
+.themed-dialog > .online-panel {
+    -fx-padding: 6px 24px 4px 24px;
+}
+
+.themed-dialog > .button-bar > .container {
+    -fx-padding: 12px 24px 22px 24px;
+}
+
+.themed-dialog .button {
+    -fx-min-width: 104px;
+}
+
+/* Viền nút phụ đậm hơn (3.4:1 so với nền thẻ) để "Hủy / Ở lại" vẫn trông như một nút. */
+.themed-dialog .ghost-button {
+    -fx-border-color: #a8802a;
+}
+
+.dialog-badge {
+    -fx-min-width: 44px;
+    -fx-min-height: 44px;
+    -fx-max-width: 44px;
+    -fx-max-height: 44px;
+    -fx-alignment: center;
+    -fx-background-radius: 999px;
+    -fx-border-radius: 999px;
+    -fx-border-width: 1px;
+}
+
+.dialog-info .dialog-badge {
+    -fx-background-color: #173f84;
+    -fx-border-color: #eab308;
+    -fx-text-fill: #ffe08a;
+}
+
+.dialog-warning .dialog-badge {
+    -fx-background-color: #fff1c2;
+    -fx-border-color: #f59e0b;
+    -fx-text-fill: #a16207;
+}
+
+.dialog-danger .dialog-badge {
+    -fx-background-color: #ffe4e6;
+    -fx-border-color: #fda4af;
+    -fx-text-fill: #be123c;
+}
+
+.dialog-title {
+    -fx-font-family: "Segoe UI Semibold", "Segoe UI";
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #102c5c;
+}
+
+.dialog-message {
+    -fx-font-size: 14px;
+    -fx-text-fill: #3f4663;
+    -fx-line-spacing: 3px;
+}
+
+/* Nút xác nhận thao tác nguy hiểm trong hộp thoại: đỏ đặc để khác hẳn nút "Ở lại / Hủy". */
+.themed-dialog .danger-button {
+    -fx-background-color: #be123c;
+    -fx-border-color: #9f1239;
+    -fx-text-fill: #fff7f8;
+}
+
+.themed-dialog .danger-button:hover {
+    -fx-background-color: #9f1239;
+}
+
+/* Hai quy tắc trên đè màu viền của nút, nên khai báo lại viền focus khi dùng bàn phím. */
+.themed-dialog .button:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+}
+
+.dialog-countdown {
+    -fx-pref-height: 8px;
+}
+
+/* Rãnh có viền 3.4:1 so với nền thẻ; phần còn lại đậm hơn rãnh ít nhất 3.9:1. */
+.dialog-countdown > .track {
+    -fx-background-color: #fbf1cf;
+    -fx-background-radius: 999px;
+    -fx-background-insets: 0;
+    -fx-border-color: #a8802a;
+    -fx-border-radius: 999px;
+    -fx-border-width: 1px;
+}
+
+.dialog-countdown > .bar {
+    -fx-background-color: linear-gradient(to right, #b45309, #a16207);
+    -fx-background-radius: 999px;
+    -fx-background-insets: 0;
+    -fx-padding: 4px;
+}
+
+.dialog-countdown-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: #62657a;
+}
+
+/* Mất kết nối: phủ tối màn hình đang chơi và hiện thẻ "đang kết nối lại" giữa màn hình. */
+.reconnect-overlay {
+    -fx-background-color: rgba(2, 10, 30, 0.55);
+    -fx-padding: 24px;
+}
+
+.reconnect-card {
+    -fx-background-color: rgba(255, 249, 224, 0.99);
+    -fx-background-radius: 20px;
+    -fx-border-color: #d6a93d;
+    -fx-border-radius: 20px;
+    -fx-padding: 24px 26px 22px 24px;
+    -fx-effect: dropshadow(gaussian, rgba(2, 10, 32, 0.6), 32, 0.24, 0, 10);
+}
+
+.reconnect-card .ghost-button {
+    -fx-border-color: #a8802a;
+}
+
+.reconnect-card .progress-indicator {
+    -fx-progress-color: #a16207;
+}
+
+/* Nút nhỏ trong thẻ thống kê (ví dụ "Xem danh sách" người đang online). */
+.stat-action {
+    -fx-padding: 6px 12px;
+    -fx-font-size: 12px;
+}
+
+/* Đếm ngược khi cả phòng đã sẵn sàng: thanh xanh đêm viền vàng nổi bật trên thẻ phòng chờ. */
+.start-countdown {
+    -fx-background-color: linear-gradient(to right, #173f84, #1d4f91);
+    -fx-background-radius: 16px;
+    -fx-border-color: #eab308;
+    -fx-border-radius: 16px;
+    -fx-padding: 10px 16px 10px 12px;
+}
+
+.start-countdown-number {
+    -fx-min-width: 52px;
+    -fx-min-height: 52px;
+    -fx-max-width: 52px;
+    -fx-max-height: 52px;
+    -fx-alignment: center;
+    -fx-background-color: #ffe08a;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #102c5c;
+    -fx-font-size: 26px;
+    -fx-font-weight: 800;
+}
+
+.start-countdown-title {
+    -fx-text-fill: #fff7d1;
+    -fx-font-size: 17px;
+    -fx-font-weight: 800;
+}
+
+.start-countdown-hint {
+    -fx-text-fill: #dbe7ff;
     -fx-font-size: 13px;
 }

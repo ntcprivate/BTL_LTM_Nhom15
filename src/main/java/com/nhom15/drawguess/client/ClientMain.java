@@ -3,6 +3,7 @@ package com.nhom15.drawguess.client;
 import com.nhom15.drawguess.client.controller.AuthController;
 import com.nhom15.drawguess.client.network.TCPClient;
 import com.nhom15.drawguess.client.view.AnimatedStarryBackdrop;
+import com.nhom15.drawguess.client.view.UiTheme;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -23,6 +24,7 @@ public class ClientMain extends Application {
         content.setPadding(new javafx.geometry.Insets(24));
         root.getChildren().addAll(backdrop, content);
         backdrop.followContent(content);
+        UiTheme.fitPadding(content);
         authController = new AuthController(content, new TCPClient());
         stage.setTitle("Draw and Guess • Starry Studio");
         Scene scene = new Scene(root, 1100, 800);

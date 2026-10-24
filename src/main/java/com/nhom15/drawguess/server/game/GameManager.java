@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -180,7 +181,11 @@ public class GameManager implements AutoCloseable {
                     match.firstCorrect = player;
                     match.firstReceivedAt = receivedAt;
                 }
-                if (drawer.online) { drawer.score++; }
+                // Tranh đã bị quá nửa người đoán báo cáo thì người vẽ không được cộng thêm.
+                if (drawer.online && !match.drawingRejected) {
+                    drawer.score++;
+                    match.drawerRoundPoints++;
+                }
             }
             match.guesses.get(match.round).add(new HistoryData.Guess(player.id, player.username, answer.trim(),
                     correct, match.roundWallStarted + TimeUnit.NANOSECONDS.toMillis(receivedAt - match.roundStarted),
@@ -191,6 +196,53 @@ public class GameManager implements AutoCloseable {
             if (correct) { broadcastScores(match, false); }
             if (everyoneDone(match)) { endRound(match); }
         }
+    }
+
+    // Báo cáo tranh đang đoán (cả lúc đang công bố đáp án). Mỗi người đoán chỉ báo cáo một lần mỗi vòng.
+    public void report(int roomId, int userId, Object payload, Consumer<Message> reply) {
+        Match match = matches.get(roomId);
+        if (match == null) { fail(reply, "NOT_IN_MATCH"); return; }
+        synchronized (match.lock) {
+            if (!(payload instanceof ReportRequest request) || !match.id.equals(request.getMatchId())) {
+                fail(reply, "INVALID_REQUEST"); return;
+            }
+            Player player = match.players.get(userId);
+            if (matches.get(roomId) != match || player == null || !player.online) {
+                fail(reply, "NOT_IN_MATCH"); return;
+            }
+            if ((match.phase != GamePhase.GUESSING && match.phase != GamePhase.ROUND_END)
+                    || request.getRoundIndex() != match.round) {
+                fail(reply, "REPORT_NOT_ACTIVE"); return;
+            }
+            if (match.order.get(match.round) == player) { fail(reply, "OWN_DRAWING"); return; }
+            if (!match.reports.add(userId)) { fail(reply, "ALREADY_REPORTED"); return; }
+            reply.accept(new Message(MessageType.ACTION_SUCCESS, "REPORT_DRAWING"));
+            applyReports(match);
+        }
+    }
+
+    // Phiếu của người đã thoát không được tính; số phiếu cần tính theo người đoán còn online.
+    private int validReports(Match match) {
+        return (int) match.reports.stream().filter(id -> match.players.get(id).online).count();
+    }
+
+    private int reportsNeeded(Match match) {
+        Player drawer = match.order.get(match.round);
+        long guessers = match.players.values().stream().filter(p -> p.online && p != drawer).count();
+        return (int) guessers / 2 + 1;
+    }
+
+    // Quá nửa người đoán báo cáo: người vẽ mất số điểm đã nhận ở vòng này và không được cộng thêm.
+    private void applyReports(Match match) {
+        if (!match.drawingRejected && validReports(match) >= reportsNeeded(match)) {
+            match.drawingRejected = true;
+            match.order.get(match.round).score -= match.drawerRoundPoints;
+            match.drawerRoundPoints = 0;
+            persist(match);
+            broadcastScores(match, false);
+        }
+        broadcast(match, MessageType.REPORT_STATUS, new ReportStatus(match.id, match.round,
+                match.order.get(match.round).id, validReports(match), reportsNeeded(match), match.drawingRejected));
     }
 
     public void disconnect(int roomId, int userId) {
@@ -204,9 +256,57 @@ public class GameManager implements AutoCloseable {
             if (match.players.values().stream().noneMatch(p -> p.online)) { match.status = "ABANDONED"; finish(match); return; }
             persist(match);
             broadcastScores(match, false);
+            // Ít người đoán hơn thì số phiếu cần cũng giảm, có thể đủ để loại tranh.
+            if ((match.phase == GamePhase.GUESSING || match.phase == GamePhase.ROUND_END) && !match.reports.isEmpty()) {
+                applyReports(match);
+            }
             if (match.phase == GamePhase.UPLOADING && allUploaded(match)) { beginGuessing(match); }
             else if (match.phase == GamePhase.GUESSING && everyoneDone(match)) { endRound(match); }
         }
+    }
+
+    // Người chơi vào lại trận sau khi mất kết nối: gửi lại trạng thái hiện tại để client dựng lại màn hình.
+    public void reconnect(int roomId, int userId, Consumer<Message> sender) {
+        Match match = matches.get(roomId);
+        if (match == null) { return; }
+        synchronized (match.lock) {
+            Player player = match.players.get(userId);
+            if (matches.get(roomId) != match || player == null) { return; }
+            player.online = true;
+            player.sender = sender;
+            int remaining = remainingSeconds(match);
+            send(player, MessageType.ROUND_CATEGORY, match.category);
+            send(player, MessageType.DRAW_WORD, new DrawingPrompt(match.id, roomId, match.category, player.word,
+                    match.phase == GamePhase.DRAWING ? remaining : 0));
+            if (match.phase == GamePhase.UPLOADING) {
+                // Client gửi ngay tranh đang có; đã gửi trước khi mất kết nối thì server báo ALREADY_UPLOADED.
+                send(player, MessageType.SUBMIT_DRAW, match.id);
+            } else if (match.phase == GamePhase.GUESSING || match.phase == GamePhase.ROUND_END) {
+                Player drawer = match.order.get(match.round);
+                send(player, MessageType.ROUND_START, new RoundInfo(match.id, match.round, match.order.size(),
+                        drawer.id, drawer.username, match.category, drawer.image,
+                        match.phase == GamePhase.GUESSING ? remaining : 0, match.hint));
+                if (player != drawer && (player.solved || player.attempts >= 3)) {
+                    send(player, MessageType.GUESS_RESULT, new GuessResult(match.id, match.round, player.solved,
+                            Math.max(0, 3 - player.attempts), true, player.solved ? "CORRECT" : "GUESS_LOCKED"));
+                }
+                if (match.reports.contains(userId)) { send(player, MessageType.ACTION_SUCCESS, "REPORT_DRAWING"); }
+                if (match.phase == GamePhase.ROUND_END) {
+                    send(player, MessageType.TIME_UP, new TimerInfo(match.id, GamePhase.ROUND_END, 0));
+                    send(player, MessageType.ANSWER, new RoundAnswer(match.id, match.round, drawer.word));
+                }
+                // Thêm một người đoán thì số phiếu báo cáo cần cũng thay đổi.
+                if (!match.reports.isEmpty()) { applyReports(match); }
+            }
+            persist(match);
+            broadcastScores(match, false);
+            sendTimer(match);
+        }
+    }
+
+    private int remainingSeconds(Match match) {
+        long remaining = Math.max(0, match.deadline - clock.getAsLong());
+        return (int) ((remaining + 999_999_999L) / 1_000_000_000L);
     }
 
     private void beginUpload(Match match) {
@@ -244,11 +344,14 @@ public class GameManager implements AutoCloseable {
         match.deadline = match.roundStarted + seconds(GUESS_SECONDS);
         match.firstCorrect = null;
         match.hintRevealed = false;
+        match.reports.clear();
+        match.drawingRejected = false;
+        match.drawerRoundPoints = 0;
         for (Player player : match.order) { player.attempts = 0; player.solved = false; }
         Player drawer = match.order.get(match.round);
+        match.hint = WordHints.mask(drawer.word, Set.of());
         broadcast(match, MessageType.ROUND_START, new RoundInfo(match.id, match.round, match.order.size(),
-                drawer.id, drawer.username, match.category, drawer.image, GUESS_SECONDS,
-                WordHints.mask(drawer.word, Set.of())));
+                drawer.id, drawer.username, match.category, drawer.image, GUESS_SECONDS, match.hint));
         broadcastScores(match, false);
         sendTimer(match);
         if (everyoneDone(match)) { endRound(match); }
@@ -261,6 +364,7 @@ public class GameManager implements AutoCloseable {
         int letters = WordHints.letterCount(word);
         if (letters < 2) { return; }
         String hint = WordHints.mask(word, Set.of(random.nextInt(letters)));
+        match.hint = hint;
         broadcast(match, MessageType.HINT, new RoundHint(match.id, match.round, hint));
     }
 
@@ -326,9 +430,7 @@ public class GameManager implements AutoCloseable {
     }
 
     private void sendTimer(Match match) {
-        long remaining = Math.max(0, match.deadline - clock.getAsLong());
-        int seconds = (int) ((remaining + 999_999_999L) / 1_000_000_000L);
-        broadcast(match, MessageType.TIME_UPDATE, new TimerInfo(match.id, match.phase, seconds));
+        broadcast(match, MessageType.TIME_UPDATE, new TimerInfo(match.id, match.phase, remainingSeconds(match)));
     }
 
     private List<ScoreEntry> scores(Match match, boolean ranked) {
@@ -391,6 +493,12 @@ public class GameManager implements AutoCloseable {
         Player firstCorrect;
         long firstReceivedAt;
         boolean hintRevealed;
+        // Gợi ý đang hiện của vòng này, gửi lại cho người vào lại trận.
+        String hint;
+        // Báo cáo của vòng đang đoán.
+        final Set<Integer> reports = new HashSet<>();
+        boolean drawingRejected;
+        int drawerRoundPoints;
         ScheduledFuture<?> timer;
 
         Match(RoomInfo room, GamePlan plan, Map<Integer, Consumer<Message>> senders, Object lock, Runnable finished) {

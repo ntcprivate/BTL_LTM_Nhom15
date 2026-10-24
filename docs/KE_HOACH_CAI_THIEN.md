@@ -16,13 +16,13 @@ Mức độ: 🔴 nghiêm trọng · 🟠 nên sửa · 🟡 nhỏ / trau chuố
 
 | Nhóm | Đã xong | Tổng |
 |---|---|---|
-| A. Luật chơi | 3 | 13 |
+| A. Luật chơi | 5 | 14 |
 | B. UI/UX | 20 | 22 |
 | C. Code, mạng, bảo mật | 0 | 12 |
 | D. Hiệu năng | 3 | 3 |
 | E. Chạy thử, tài liệu | 2 | 2 |
-| F. Rà soát UI/UX theo ui-ux-pro-max | 0 | 12 |
-| **Tổng** | **28** | **64** |
+| F. Rà soát UI/UX theo ui-ux-pro-max | 9 | 12 |
+| **Tổng** | **39** | **65** |
 
 ### Lịch sử commit trên nhánh `dev_vu`
 
@@ -37,17 +37,18 @@ Mức độ: 🔴 nghiêm trọng · 🟠 nên sửa · 🟡 nhỏ / trau chuố
 ## A. Luật chơi và cách chơi
 
 - [x] **A8 — Gợi ý từ khóa** `_ _ _   _ _ _`, mở 1 chữ cái sau 15 giây — `7d61be5`
-- [x] **A11 — Chủ phòng và kick**: người vào đầu là chủ phòng, có nút "Mời ra"; khi đã có người sẵn sàng, ai chưa sẵn sàng sau 60 giây tự rời phòng — `7d61be5`
+- [x] **A11 — Chủ phòng và kick**: người vào đầu là chủ phòng, có nút "Mời ra" — `7d61be5`. *Đã bỏ chế độ tự đưa người chưa sẵn sàng ra sau 60 giây: chỉ chủ phòng mới mời ra được.*
 - [x] **A12 — Hoàn tác khi vẽ**: nút ↶ Hoàn tác / Ctrl+Z, khôi phục cả tranh lỡ bấm "Xóa tranh" (tối đa 20 bước) — `7d61be5`
 - [ ] 🔴 **A1 — Chọn chủ đề**: README ghi "chọn chủ đề" nhưng server chọn ngẫu nhiên (`WordDAO.selectWords`). Thêm chọn/bình chọn chủ đề hoặc sửa README.
 - [ ] 🔴 **A2 — Chuẩn hóa đáp án**: so sánh sau NFC + gộp khoảng trắng (`GameManager.normalize`). Quyết định có chấp nhận gõ không dấu hay không.
-- [ ] 🔴 **A3 — Chống viết chữ lên tranh**: người vẽ được +1 cho mỗi người đoán đúng, nên viết chữ là có lợi. Ghi luật trên màn hình vẽ, giới hạn điểm người vẽ khi *tất cả* đều đoán đúng, hoặc thêm nút báo cáo.
+- [x] 🔴 **A3 — Chống viết chữ lên tranh**: người vẽ được +1 cho mỗi người đoán đúng, nên viết chữ là có lợi. Ghi luật trên màn hình vẽ, giới hạn điểm người vẽ khi *tất cả* đều đoán đúng, hoặc thêm nút báo cáo. — chưa commit — đã làm: nút **Báo cáo tranh** trong phiên đoán (cả lúc công bố đáp án); quá nửa người đoán đang online báo cáo thì người vẽ mất điểm đã nhận ở vòng đó và không được cộng thêm, người đoán giữ điểm. Báo cáo chưa được lưu vào lịch sử trận (chỉ điểm cuối cùng được lưu).
 - [ ] 🔴 **A4 — Bỏ qua vòng có tranh trắng** (không vẽ, mất kết nối, gửi lỗi) thay vì bắt cả phòng chờ 30 giây.
 - [ ] 🔴 **A5 — Kết thúc trận khi còn dưới 2 người online** (`GameManager.disconnect`).
 - [ ] 🟠 **A6 — Điểm theo tốc độ**: ví dụ đúng trong 10 giây đầu +3, 10 giây tiếp +2, sau đó +1.
 - [ ] 🟠 **A7 — Thông báo "X đã đoán đúng!"** cho cả phòng (không lộ đáp án).
 - [ ] 🟠 **A9 — Nút "Nộp sớm"**: server nhận tranh trong pha DRAWING; ai cũng nộp thì chuyển sang đoán ngay.
 - [ ] 🟠 **A10 — Đếm ngược 3–5 giây trước khi vào trận**, cho phép hủy sẵn sàng trong lúc đếm.
+- [x] 🟠 **A14 — Mời người đang online vào phòng** — chưa commit — đã làm: nút "Mời người chơi" ở phòng chờ mở danh sách người online kèm trạng thái; ai trong phòng cũng mời được người đang rảnh; người được mời có hộp thoại Vào phòng / Từ chối (hết hạn sau 30 giây) và người mời được báo khi bị từ chối. Server chặn mời lại cùng một người trong 10 giây, không mời khi phòng đang chơi / đủ người hoặc người đó đã bị chủ phòng mời ra.
 - [ ] 🟡 **A13 — Dùng cột `difficulty`** (EASY/MEDIUM/HARD): từ khó nhiều điểm hơn hoặc chia đều độ khó.
 
 > Ghi chú: mọi người vẽ từ khác nhau trong cùng chủ đề, nên ai cũng loại trừ được từ của chính mình. Mất kết nối giữa trận thì không vào lại được. Hai điểm này chấp nhận được, chỉ cần ghi vào luật.
@@ -143,18 +144,18 @@ Rà soát ngày 24/10/2026 theo `quick-reference.md` (98 quy tắc, 10 nhóm) v�
 
 **Đã đạt:** 32/35 cặp màu chữ–nền đạt 4.5:1; có viền focus khi dùng Tab; điều khiển bằng bàn phím (thẻ trang chủ và avatar đều là nút thật); hỏi xác nhận trước thao tác nguy hiểm; trạng thái đang tải / rỗng / lỗi đều có chữ; không dùng màu làm tín hiệu duy nhất; nút bị vô hiệu hóa có độ mờ rõ ràng; phong cách thống nhất.
 
-- [ ] 🟠 **F1 — Một số màn hình cao hơn cửa sổ ở 1280×721** nên mép trên/dưới bị cắt vài pixel: game cần ~804–824px, phòng chờ ~772px, đăng ký ~753px. Giảm khoảng đệm/ảnh trang trí, hoặc cho cuộn khi cửa sổ thấp. *(layout, `min/pref size`)*
+- [x] 🟠 **F1 — Một số màn hình cao hơn cửa sổ ở 1280×721** nên mép trên/dưới bị cắt vài pixel: game cần ~804–824px, phòng chờ ~772px, đăng ký ~753px. Giảm khoảng đệm/ảnh trang trí, hoặc cho cuộn khi cửa sổ thấp. *(layout, `min/pref size`)* — chưa commit — đã làm: thanh tiêu đề game còn 2 dòng (chủ đề và từ khóa chung một dòng), thanh công cụ và phòng chờ gọn hơn, khoảng đệm quanh nội dung tự giảm từ 24 xuống 8px khi cửa sổ thấp hơn 800px. Đo ở 1280×721: trước đó game tràn 38–66px, phòng chờ tràn 15px; sau khi sửa cả 7 màn hình đều vừa
 - [ ] 🟠 **F2 — Chưa có tùy chọn giảm chuyển động**: nền động (sao lấp lánh, parallax theo chuột) chạy liên tục chỉ để trang trí. Thêm công tắc "Giảm hiệu ứng" để tắt nền động và các hiệu ứng chuyển cảnh. *(reduced-motion, parallax-subtle)*
 - [ ] 🟠 **F3 — Màu viết thẳng mã hex ở 148 chỗ trong `app.css`**: chưa dùng biến màu (looked-up colors) khai báo một lần trên `.root`. Đổi màu chủ đạo hay kiểm tra tương phản phải sửa rất nhiều chỗ. *(color-semantic, JavaFX "looked-up colors")*
-- [ ] 🟠 **F4 — Hộp thoại xác nhận xóa ở màn hình Quản trị chưa gắn cửa sổ cha** (`AdminView`, thiếu `initOwner`): có thể hiện ra ở giữa màn hình khác hoặc nằm sau cửa sổ game. *(modal ownership)*
-- [ ] 🟡 **F5 — Ô số phòng gần như biến mất khi dòng phòng đang được chọn**: nền ô `#173f84` trên nền dòng `#1d4f91`, tương phản 1.24:1 (cần 3:1). *(non-text contrast)*
-- [ ] 🟡 **F6 — Chữ gợi ý mờ trong ô nhập (placeholder) chỉ đạt 3.37:1** (`#8b8b80` trên `#fffdf2`, cần 4.5:1). *(color-contrast)*
+- [x] 🟠 **F4 — Hộp thoại xác nhận xóa ở màn hình Quản trị chưa gắn cửa sổ cha** (`AdminView`, thiếu `initOwner`): có thể hiện ra ở giữa màn hình khác hoặc nằm sau cửa sổ game. *(modal ownership)* — chưa commit — đã làm: gắn `initOwner`, thêm tiêu đề hộp thoại
+- [x] 🟡 **F5 — Ô số phòng gần như biến mất khi dòng phòng đang được chọn**: nền ô `#173f84` trên nền dòng `#1d4f91`, tương phản 1.24:1 (cần 3:1). *(non-text contrast)* — chưa commit — đã làm: ô số phòng chuyển nền vàng trên dòng đang chọn (6.31:1)
+- [x] 🟡 **F6 — Chữ gợi ý mờ trong ô nhập (placeholder) chỉ đạt 3.37:1** (`#8b8b80` trên `#fffdf2`, cần 4.5:1). *(color-contrast)* — chưa commit — đã làm: đổi sang `#716e66` (4.99:1), vẫn nhạt hơn chữ người dùng gõ
 - [ ] 🟡 **F7 — Tên tranh avatar ở trang chủ đạt 4.48:1**, sát dưới ngưỡng 4.5:1 (`.avatar-name #9a6a08`). *(color-contrast)*
-- [ ] 🟡 **F8 — Vùng bấm nhỏ**: ô chọn màu cao 20px và ô "Chỉ hiện phòng còn chỗ" 20px, dưới mức tối thiểu 24×24px của WCAG 2.5.8; thanh trượt nét vẽ 23px; các liên kết và nút "Mời ra" 24px (vừa chạm ngưỡng). *(touch-target-size)*
-- [ ] 🟡 **F9 — Nhãn chưa liên kết với ô nhập** (không có `setLabelFor` nào): trình đọc màn hình không đọc được tên ô. *(form-labels, JavaFX "Connect labels to inputs")*
-- [ ] 🟡 **F10 — Không có nút hiện/ẩn mật khẩu** ở đăng nhập và đăng ký. *(password-toggle)*
-- [ ] 🟡 **F11 — Biểu tượng là ký tự chữ** (★ ✓ ↶ ✦), kích thước và nét không đồng đều (↶ hiển thị nhỏ). Nên dùng một bộ icon vector thống nhất, ví dụ thư viện Ikonli. *(no-emoji-icons, icon-style-consistent)*
-- [ ] 🟡 **F12 — Lỗi nhập liệu ở đăng nhập/đăng ký hiện ở ô thông báo cuối form**, không nằm ngay dưới ô bị sai và không tự đưa con trỏ về ô đó. *(error-placement, focus-management)*
+- [x] 🟡 **F8 — Vùng bấm nhỏ**: ô chọn màu cao 20px và ô "Chỉ hiện phòng còn chỗ" 20px, dưới mức tối thiểu 24×24px của WCAG 2.5.8; thanh trượt nét vẽ 23px; các liên kết và nút "Mời ra" 24px (vừa chạm ngưỡng). *(touch-target-size)* — chưa commit — đã làm: ô chọn màu cao 34px, ô lọc phòng ~32px, thanh trượt có núm và vùng bấm lớn hơn, liên kết và nút "Mời ra" ~28px
+- [x] 🟡 **F9 — Nhãn chưa liên kết với ô nhập** (không có `setLabelFor` nào): trình đọc màn hình không đọc được tên ô. *(form-labels, JavaFX "Connect labels to inputs")* — chưa commit — đã làm: mọi nhãn ở đăng nhập, đăng ký, quản trị và ô "Nét" đều `setLabelFor`; ô không có nhãn hiển thị (ô đoán, chọn màu, chọn vòng ở lịch sử, dấu đã sẵn sàng) có `accessibleText`
+- [x] 🟡 **F10 — Không có nút hiện/ẩn mật khẩu** ở đăng nhập và đăng ký. *(password-toggle)* — chưa commit — đã làm: `PasswordInput` có nút con mắt 34×34px ở cuối ô (có tooltip và tên cho trình đọc màn hình), giữ nguyên chữ và vị trí con trỏ khi bật/tắt; xóa mật khẩu thì tự che lại
+- [x] 🟡 **F11 — Biểu tượng là ký tự chữ** (★ ✓ ↶ ✦), kích thước và nét không đồng đều (↶ hiển thị nhỏ). Nên dùng một bộ icon vector thống nhất, ví dụ thư viện Ikonli. *(no-emoji-icons, icon-style-consistent)* — chưa commit — đã làm: bộ icon `Icons` vẽ bằng `SVGPath` (lưới 24×24, nét 2px, đầu tròn, kiểu Lucide/Feather), tự lấy màu theo màu chữ; không thêm thư viện. Thay ★ ✓ ↶ ✦ → ở hoàn tác, tẩy, bảng điểm, kết quả, phòng chờ, lịch sử, trang chủ và logo
+- [x] 🟡 **F12 — Lỗi nhập liệu ở đăng nhập/đăng ký hiện ở ô thông báo cuối form**, không nằm ngay dưới ô bị sai và không tự đưa con trỏ về ô đó. *(error-placement, focus-management)* — chưa commit — đã làm: `FormField` hiện lỗi (icon + chữ đỏ) ngay dưới ô, viền ô chuyển đỏ, con trỏ về ô sai đầu tiên; kiểm tra mọi ô cùng lúc (cả địa chỉ và cổng máy chủ); lỗi tự ẩn khi sửa ô; lỗi "tên đã tồn tại" từ server cũng hiện dưới ô tên đăng nhập
 
 > Ghi chú: bộ gợi ý thiết kế của skill (`--design-system`) đề xuất phong cách Claymorphism hồng – vàng cho game vẽ vui nhộn. Giao diện hiện tại theo chủ đề tranh Van Gogh đã có nét riêng, nhất quán và hợp với game (bo góc lớn, viền dày, màu ấm), nên **không cần đổi phong cách**; chỉ sửa các điểm F1–F12.
 

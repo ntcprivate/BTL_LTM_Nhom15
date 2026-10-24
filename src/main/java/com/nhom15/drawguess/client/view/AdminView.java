@@ -28,6 +28,9 @@ public class AdminView extends VBox {
         setPadding(new Insets(22)); setSpacing(14);
         setMaxWidth(Double.MAX_VALUE); setMaxHeight(Double.MAX_VALUE);
         difficulty.getItems().setAll("EASY","MEDIUM","HARD"); difficulty.setValue("EASY");
+        // Mặc định ComboBox lấy độ rộng theo danh sách xổ xuống, mà danh sách lại rộng bằng ô đang giãn đầy cột:
+        // mỗi lần mở là cột từ khóa nở thêm. Cố định độ rộng mong muốn để cắt vòng lặp đó.
+        difficulty.setPrefWidth(160);
         difficulty.setConverter(new StringConverter<>() {
             @Override public String toString(String value) { return value==null ? "" : DIFFICULTY_LABELS.getOrDefault(value,value); }
             @Override public String fromString(String text) { return DIFFICULTY_LABELS.entrySet().stream().filter(e->e.getValue().equals(text)).map(Map.Entry::getKey).findFirst().orElse(text); }
@@ -64,6 +67,7 @@ public class AdminView extends VBox {
     }
     private VBox field(String text,Control input) {
         Label label=new Label(text); label.getStyleClass().add("field-label");
+        label.setLabelFor(input);
         input.setMaxWidth(Double.MAX_VALUE);
         return new VBox(5,label,input);
     }
@@ -90,8 +94,9 @@ public class AdminView extends VBox {
         String name=(cat ? categoryName : wordName).getText().trim();
         if(!"DELETE".equals(action) && (name.isBlank() || name.length()>100 || (cat && description.getText().length()>255))) { showResult(lastEditStatus,"Tên cần có 1–100 ký tự; mô tả tối đa 255 ký tự.","error"); return; }
         if("DELETE".equals(action)) {
-            Alert confirm=new Alert(Alert.AlertType.CONFIRMATION,cat ? "Xóa chủ đề này và toàn bộ từ khóa? Lịch sử đã lưu vẫn được giữ." : "Xóa từ khóa đang chọn?",ButtonType.OK,ButtonType.CANCEL);
-            if(confirm.showAndWait().orElse(ButtonType.CANCEL)!=ButtonType.OK) return;
+            // Gắn với cửa sổ game để hộp thoại hiện đúng chỗ và chặn thao tác phía sau.
+            if(!ThemedDialog.confirm(this,ThemedDialog.Tone.DANGER,Icons.Glyph.TRASH,cat ? "Xóa chủ đề \""+c.name()+"\"?" : "Xóa từ khóa \""+w.content()+"\"?",
+                    cat ? "Toàn bộ từ khóa của chủ đề cũng bị xóa. Lịch sử trận đã lưu vẫn được giữ." : "Từ khóa sẽ không còn xuất hiện ở các trận sau.","Xóa","Hủy")) return;
         }
         showResult(lastEditStatus,"Đang lưu...","info"); setDisable(true);
         send.accept(new Message(MessageType.EDIT_CATALOG,new Edit(entity,action,id,c==null ? 0 : c.id(),name,description.getText(),difficulty.getValue())));

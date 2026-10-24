@@ -108,7 +108,7 @@ class UiImprovementsViewTest {
             Parent page = show(view);
             view.showDrawing(new DrawingPrompt(MATCH, 1, "Động vật", "Con mèo", 60));
             relayout(page);
-            for (String text : List.of("Tẩy", "↶ Hoàn tác", "Xóa tranh", "Rời phòng", "Đăng xuất", "Đoán")) {
+            for (String text : List.of("Tẩy", "Hoàn tác", "Xóa tranh", "Rời phòng", "Đăng xuất", "Đoán")) {
                 Labeled control = find(view, Labeled.class, c -> text.equals(c.getText()));
                 assertNotNull(control, text);
                 assertFalse(control.isTextTruncated(), "Chữ bị cắt: " + text);
@@ -120,11 +120,13 @@ class UiImprovementsViewTest {
 
             ToggleButton eraser = find(view, ToggleButton.class, t -> "Tẩy".equals(t.getText()));
             eraser.fire();
-            assertEquals("✓ Đang tẩy", eraser.getText());
+            assertEquals("Đang tẩy", eraser.getText());
+            assertNotNull(eraser.getGraphic().lookup(".icon-check"), "Đang tẩy phải có icon dấu tích");
             assertTrue(eraser.getPseudoClassStates().stream().anyMatch(p -> p.getPseudoClassName().equals("selected")));
             snapshot(page, "game-toolbar-eraser.png");
             eraser.fire();
             assertEquals("Tẩy", eraser.getText());
+            assertNull(eraser.getGraphic());
         });
     }
 
@@ -156,7 +158,11 @@ class UiImprovementsViewTest {
             assertTrue(texts(view, ".score-name").contains("vu  • Bạn"));
             List<String> badges = texts(view, ".score-badge");
             assertTrue(badges.contains("Người vẽ"), badges.toString());
-            assertTrue(badges.contains("✓ Đoán đúng"), badges.toString());
+            assertTrue(badges.contains("Đoán đúng"), badges.toString());
+            Label solved = find(view, Label.class, l -> "Đoán đúng".equals(l.getText()));
+            assertNotNull(solved.getGraphic().lookup(".icon-check"));
+            assertTrue(view.lookupAll(".score-badge").stream().filter(n -> !"Đoán đúng".equals(((Label) n).getText()))
+                    .allMatch(n -> ((Label) n).getGraphic() == null), "Chỉ huy hiệu Đoán đúng mới có icon");
             assertTrue(badges.contains("Đang đoán"), badges.toString());
             assertFalse(badges.contains("Đang vẽ"), "Trong pha đoán không ai đang vẽ");
             assertEquals(1, view.lookupAll(".score-row-self").size());
@@ -188,7 +194,8 @@ class UiImprovementsViewTest {
             relayout(page);
             assertTrue(view.lookup(".result-panel").isVisible());
             assertEquals(3, view.lookupAll(".podium-step").size());
-            assertEquals("★ Người thắng: lan", texts(view, ".result-winner").getFirst());
+            assertEquals("Người thắng: lan", texts(view, ".result-winner").getFirst());
+            assertNotNull(view.lookup(".result-winner .icon-star"));
             assertTrue(texts(view, ".result-other").getFirst().startsWith("4.  minh"));
             assertTrue(find(view, Button.class, b -> "Về phòng chờ".equals(b.getText())).isVisible());
             snapshot(page, "game-result.png");
@@ -245,6 +252,109 @@ class UiImprovementsViewTest {
             relayout(registerPage);
             assertFalse(((Label) register.lookup(".server-summary")).isTextTruncated());
             snapshot(registerPage, "register-server.png");
+        });
+    }
+
+    // F9 + F12: nhãn nối với ô nhập; lỗi hiện ngay dưới ô sai và con trỏ về ô sai đầu tiên.
+    @Test void authFormsLinkLabelsAndShowErrorsUnderTheWrongField() throws Exception {
+        ui(() -> {
+            LoginView login = new LoginView("localhost", 5555);
+            Parent page = show(login);
+            List<Label> labels = login.lookupAll(".field-label").stream().map(Label.class::cast).toList();
+            assertEquals(4, labels.size());
+            assertTrue(labels.stream().allMatch(l -> l.getLabelFor() instanceof TextInputControl), "Mọi nhãn phải nối với ô nhập");
+            TextField username = find(login, TextField.class, t -> "Tên đăng nhập".equals(t.getPromptText()));
+            PasswordField password = find(login, PasswordField.class, t -> true);
+            TextField port = find(login, TextField.class, t -> "5555".equals(t.getText()));
+            assertSame(password, labels.stream().filter(l -> "Mật khẩu".equals(l.getText())).findFirst().orElseThrow().getLabelFor());
+            assertTrue(login.lookupAll(".field-error").stream().noneMatch(Node::isVisible));
+
+            login.showFieldErrors(Map.of(AuthField.SERVER_PORT, "Cổng server phải là số từ 1 đến 65535.",
+                    AuthField.USERNAME, "Tên đăng nhập phải có từ 1 đến 50 ký tự."));
+            relayout(page);
+            List<Label> errors = login.lookupAll(".field-error").stream().filter(Node::isVisible).map(Label.class::cast).toList();
+            assertEquals(2, errors.size());
+            assertSame(username.getParent(), errors.getFirst().getParent(), "Lỗi phải nằm ngay trong khối của ô sai");
+            assertTrue(port.isVisible() && port.getParent().getParent().isVisible(), "Lỗi ở cổng phải mở phần máy chủ");
+            assertSame(username, login.getScene().getFocusOwner(), "Con trỏ phải về ô sai đầu tiên");
+            assertTrue(username.getPseudoClassStates().stream().anyMatch(p -> p.getPseudoClassName().equals("invalid")));
+            assertEquals("Tên đăng nhập phải có từ 1 đến 50 ký tự.", username.getAccessibleHelp());
+            assertEquals("Nhập tài khoản để đăng nhập.", ((Label) login.lookup(".status-banner")).getText());
+            assertTrue(errors.stream().noneMatch(Label::isTextTruncated));
+            assertTrue(port.getWidth() < 160, "Lỗi dài không được làm ô cổng phình ra: " + port.getWidth());
+            snapshot(page, "login-field-errors.png");
+
+            username.setText("vu");
+            assertEquals(1, login.lookupAll(".field-error").stream().filter(Node::isVisible).count(), "Sửa ô thì lỗi của ô đó tự ẩn");
+            assertTrue(username.getPseudoClassStates().stream().noneMatch(p -> p.getPseudoClassName().equals("invalid")));
+
+            RegisterView register = new RegisterView();
+            Parent registerPage = show(register);
+            register.showFieldErrors(Map.of(AuthField.CONFIRM_PASSWORD, "Mật khẩu nhập lại không khớp."));
+            relayout(registerPage);
+            PasswordField confirm = (PasswordField) register.lookupAll(".field-label").stream().map(Label.class::cast)
+                    .filter(l -> "Nhập lại mật khẩu".equals(l.getText())).findFirst().orElseThrow().getLabelFor();
+            assertSame(confirm, register.getScene().getFocusOwner());
+            snapshot(registerPage, "register-field-errors.png");
+        });
+    }
+
+    // F10: nút con mắt hiện/ẩn mật khẩu mà không làm mất chữ đã gõ.
+    @Test void passwordToggleRevealsAndHidesTypedText() throws Exception {
+        ui(() -> {
+            LoginView login = new LoginView("localhost", 5555);
+            Parent page = show(login);
+            PasswordField password = find(login, PasswordField.class, t -> true);
+            ToggleButton eye = (ToggleButton) login.lookup(".password-toggle");
+            password.setText("bimat123");
+            relayout(page);
+            javafx.scene.text.Text shown = (javafx.scene.text.Text) password.lookup(".text");
+            assertNotEquals("bimat123", shown.getText(), "Mặc định phải che mật khẩu");
+            assertEquals("Hiện mật khẩu", eye.getAccessibleText());
+            assertNotNull(eye.getGraphic().lookup(".icon-eye"));
+
+            eye.fire();
+            relayout(page);
+            shown = (javafx.scene.text.Text) password.lookup(".text");
+            assertEquals("bimat123", shown.getText());
+            assertEquals("bimat123", login.getPassword());
+            assertEquals("Ẩn mật khẩu", eye.getAccessibleText());
+            assertNotNull(eye.getGraphic().lookup(".icon-eye-off"));
+            assertTrue(eye.getWidth() >= 24 && eye.getHeight() >= 24, "Vùng bấm tối thiểu 24px");
+            snapshot(page, "login-password-shown.png");
+
+            login.clearPassword();
+            relayout(page);
+            assertEquals("Hiện mật khẩu", eye.getAccessibleText(), "Xóa mật khẩu thì quay về chế độ che");
+        });
+    }
+
+    // F11: biểu tượng là icon vector thống nhất, không còn ký tự làm icon.
+    @Test void iconsReplaceGlyphCharacters() throws Exception {
+        ui(() -> {
+            LoginView login = new LoginView("localhost", 5555);
+            show(login);
+            Label brand = (Label) login.lookup(".brand-chip");
+            assertEquals("STARRY DRAW", brand.getText());
+            assertEquals(2, brand.getGraphic().lookupAll(".icon-sparkle").size());
+
+            LobbyView lobby = new LobbyView(1, () -> {}, () -> {}, () -> {}, ignored -> {});
+            show(lobby);
+            lobby.update(new RoomInfo(3, RoomStatus.READY_CHECK, List.of(new PlayerInfo(1, "vu", true, true),
+                    new PlayerInfo(2, "lan", false, true)), 1));
+            Label host = (Label) lobby.lookup(".room-host");
+            assertEquals("Chủ phòng", host.getText());
+            assertNotNull(host.getGraphic().lookup(".icon-star"));
+            List<Label> marks = lobby.lookupAll(".ready-mark").stream().map(Label.class::cast).toList();
+            assertEquals(1, marks.stream().filter(m -> m.getGraphic() != null).count());
+            assertEquals("Đã sẵn sàng", marks.stream().filter(m -> m.getGraphic() != null).findFirst().orElseThrow().getAccessibleText());
+
+            String glyphs = "\u2605\u2713\u21B6\u2726\u2192";
+            for (Parent root : List.<Parent>of(login, lobby)) {
+                List<String> withGlyph = root.lookupAll("*").stream().filter(Labeled.class::isInstance)
+                        .map(n -> ((Labeled) n).getText()).filter(t -> t != null && t.chars().anyMatch(c -> glyphs.indexOf(c) >= 0)).toList();
+                assertTrue(withGlyph.isEmpty(), "Còn ký tự làm icon: " + withGlyph);
+            }
         });
     }
 

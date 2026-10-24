@@ -171,6 +171,54 @@ class RoomProtocolTest {
     }
 
     @Test
+    void playersSeeWhoIsOnlineAndCanInviteDeclineOrAccept() throws Exception {
+        try (TestServer server = new TestServer()) {
+            TCPClient host = server.client();
+            login(host, 1, "USER");
+            send(host, MessageType.JOIN_ROOM, 1);
+            receive(host, MessageType.JOIN_SUCCESS);
+            TCPClient free = server.client();
+            login(free, 2, "USER");
+            TCPClient busy = server.client();
+            login(busy, 3, "USER");
+            send(busy, MessageType.JOIN_ROOM, 2);
+            receive(busy, MessageType.JOIN_SUCCESS);
+            TCPClient admin = server.client();
+            login(admin, 9, "ADMIN");
+
+            send(host, MessageType.GET_ONLINE_USERS, null);
+            List<?> online = assertInstanceOf(List.class, receive(host, MessageType.ONLINE_USERS).getData());
+            List<OnlineUser> users = online.stream().map(OnlineUser.class::cast).toList();
+            assertEquals(List.of(2, 3), users.stream().map(OnlineUser::getUserId).toList(),
+                    "Không có chính mình và tài khoản quản trị; người rảnh đứng trước");
+            assertTrue(users.getFirst().isAvailable());
+            assertEquals(2, users.get(1).getRoomId());
+
+            send(host, MessageType.INVITE_PLAYER, 2);
+            assertEquals("INVITE_PLAYER", receive(host, MessageType.ACTION_SUCCESS).getData());
+            Invitation invitation = assertInstanceOf(Invitation.class, receive(free, MessageType.INVITATION).getData());
+            assertEquals(1, invitation.getFromUserId());
+            assertEquals("player1", invitation.getFromUsername());
+            assertEquals(1, invitation.getRoomId());
+            send(host, MessageType.INVITE_PLAYER, 2);
+            assertEquals("INVITE_COOLDOWN", receive(host, MessageType.ACTION_FAILED).getData());
+            send(host, MessageType.INVITE_PLAYER, 3);
+            assertEquals("TARGET_BUSY", receive(host, MessageType.ACTION_FAILED).getData());
+            send(host, MessageType.INVITE_PLAYER, 9);
+            assertEquals("TARGET_OFFLINE", receive(host, MessageType.ACTION_FAILED).getData());
+            send(free, MessageType.INVITE_PLAYER, 1);
+            assertEquals("NOT_IN_ROOM", receive(free, MessageType.ACTION_FAILED).getData());
+
+            send(free, MessageType.DECLINE_INVITE, invitation);
+            Invitation declined = assertInstanceOf(Invitation.class, receive(host, MessageType.INVITE_DECLINED).getData());
+            assertEquals("player2", declined.getToUsername());
+
+            send(free, MessageType.JOIN_ROOM, invitation.getRoomId());
+            assertEquals(2, assertInstanceOf(RoomInfo.class, receive(free, MessageType.JOIN_SUCCESS).getData()).getPlayers().size());
+        }
+    }
+
+    @Test
     void roomListInvalidJoinAndLeaveKeepAuthenticatedConnectionAlive() throws Exception {
         try (TestServer server = new TestServer()) {
             TCPClient client = server.client();
@@ -193,6 +241,83 @@ class RoomProtocolTest {
             assertEquals("LOGOUT", receive(client, MessageType.ACTION_SUCCESS).getData());
             assertTrue(server.rooms.getRooms().get(1).getPlayers().isEmpty());
         }
+    }
+
+    @Test
+    void droppedPlayerLogsInAgainAndReturnsToTheRunningMatch() throws Exception {
+        AtomicLong clock = new AtomicLong();
+        WordDAO words = new WordDAO() {
+            @Override public GamePlan selectWords(int count) {
+                return new GamePlan("Động vật", List.of("Con mèo", "Con chó", "Con voi").subList(0, count));
+            }
+        };
+        try (GameManager game = new GameManager(words, new DrawingStore(drawingsDirectory), clock::get, false,
+                new com.nhom15.drawguess.server.dao.HistoryDAO() { @Override public void save(com.nhom15.drawguess.common.protocol.HistoryData.Detail d) {} });
+             TestServer server = new TestServer(game, clock::get)) {
+            List<TCPClient> players = new ArrayList<>();
+            for (int id = 1; id <= 3; id++) {
+                TCPClient client = server.client();
+                players.add(client);
+                login(client, id, "USER");
+                send(client, MessageType.JOIN_ROOM, 1);
+                receive(client, MessageType.JOIN_SUCCESS);
+            }
+            for (TCPClient client : players) { send(client, MessageType.READY, null); }
+            List<DrawingPrompt> prompts = new ArrayList<>();
+            for (TCPClient client : players) {
+                prompts.add(assertInstanceOf(DrawingPrompt.class, receive(client, MessageType.DRAW_WORD).getData()));
+            }
+
+            // Người chơi 1 tắt game giữa trận rồi đăng nhập lại: tự về đúng trận, đúng từ của mình.
+            players.getFirst().disconnect();
+            awaitOnline(server, 1, false);
+            TCPClient back = server.client();
+            login(back, 1, "USER");
+            RoomInfo room = assertInstanceOf(RoomInfo.class, receive(back, MessageType.JOIN_SUCCESS).getData());
+            assertEquals(RoomStatus.PLAYING, room.getStatus());
+            DrawingPrompt prompt = assertInstanceOf(DrawingPrompt.class, receive(back, MessageType.DRAW_WORD).getData());
+            assertEquals(prompts.getFirst().getMatchId(), prompt.getMatchId());
+            assertEquals(prompts.getFirst().getWord(), prompt.getWord());
+            awaitOnline(server, 1, true);
+
+            // Người chơi 2 mất mạng nhưng server chưa biết: máy đó nối lại bằng mã nối lại của phiên cũ.
+            TCPClient stale = players.get(1);
+            send(stale, MessageType.GET_RESUME_TOKEN, null);
+            String code = (String) receive(stale, MessageType.RESUME_TOKEN).getData();
+            TCPClient resumed = server.client();
+            send(resumed, MessageType.LOGIN, new LoginRequest("2", "USER", code));
+            receive(resumed, MessageType.LOGIN_SUCCESS);
+            receive(resumed, MessageType.JOIN_SUCCESS);
+            assertEquals(prompts.get(1).getWord(),
+                    assertInstanceOf(DrawingPrompt.class, receive(resumed, MessageType.DRAW_WORD).getData()).getWord());
+            assertNull(drain(stale), "Server đóng kết nối cũ");
+            Thread.sleep(200);
+            awaitOnline(server, 2, true);
+
+            // Hết giờ vẽ thì cả hai người vừa nối lại đều được yêu cầu gửi tranh như bình thường.
+            clock.addAndGet(60_000_000_000L);
+            game.tick(1);
+            receive(back, MessageType.SUBMIT_DRAW);
+            receive(resumed, MessageType.SUBMIT_DRAW);
+        }
+    }
+
+    private static Message drain(TCPClient client) {
+        for (int count = 0; count < 100; count++) {
+            Message message = client.receiveMessage();
+            if (message == null) { return null; }
+        }
+        return new Message(MessageType.ACTION_FAILED, "STILL_OPEN");
+    }
+
+    private static void awaitOnline(TestServer server, int userId, boolean online) throws InterruptedException {
+        for (int attempt = 0; attempt < 100; attempt++) {
+            boolean current = server.rooms.getRooms().getFirst().getPlayers().stream()
+                    .anyMatch(p -> p.getUserId() == userId && p.isOnline());
+            if (current == online) { return; }
+            Thread.sleep(20);
+        }
+        fail("Người chơi " + userId + (online ? " chưa online lại" : " vẫn online"));
     }
 
     private static void login(TCPClient client, int id, String role) {
@@ -228,7 +353,7 @@ class RoomProtocolTest {
 
         TestServer(GameManager gameManager, LongSupplier clock) throws IOException {
             this.clock = clock;
-            rooms = new RoomManager(gameManager);
+            rooms = new RoomManager(gameManager, clock, RoomManager.StartTimer.IMMEDIATE);
             listener = new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
         }
 
