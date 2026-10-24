@@ -2,7 +2,6 @@ package com.nhom15.drawguess.client.view;
 
 import com.nhom15.drawguess.common.protocol.RoomInfo;
 import com.nhom15.drawguess.common.protocol.RoomStatus;
-import com.nhom15.drawguess.common.protocol.PlayerInfo;
 import com.nhom15.drawguess.common.protocol.UserInfo;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -169,8 +168,11 @@ public class RoomListView extends VBox {
                 || room.getStatus() == RoomStatus.READY_CHECK).count()));
         activeRooms.setText(String.valueOf(data.stream().filter(room -> room.getStatus() == RoomStatus.PLAYING
                 || room.getStatus() == RoomStatus.GAME_STARTING).count()));
-        onlinePlayers.setText(String.valueOf(data.stream().flatMap(room -> room.getPlayers().stream())
-                .filter(PlayerInfo::isOnline).count()));
+    }
+
+    // Số người online do server đếm (mọi tài khoản đang đăng nhập, gồm cả chính mình).
+    public void updateOnlineCount(int count) {
+        onlinePlayers.setText(String.valueOf(count));
     }
 
     private void applyFilter() {

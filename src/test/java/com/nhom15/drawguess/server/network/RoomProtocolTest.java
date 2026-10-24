@@ -149,6 +149,28 @@ class RoomProtocolTest {
     }
 
     @Test
+    void onlineCountIncludesEveryLoggedInUserEvenOutsideRooms() throws Exception {
+        try (TestServer server = new TestServer()) {
+            TCPClient first = server.client();
+            login(first, 1, "USER");
+            send(first, MessageType.GET_ROOMS, null);
+            assertEquals(1, receive(first, MessageType.ONLINE_COUNT).getData(), "Phải tính cả chính mình");
+
+            TCPClient second = server.client();
+            login(second, 2, "USER");
+            send(second, MessageType.JOIN_ROOM, 1);
+            receive(second, MessageType.JOIN_SUCCESS);
+            send(first, MessageType.GET_ROOMS, null);
+            assertEquals(2, receive(first, MessageType.ONLINE_COUNT).getData());
+
+            send(second, MessageType.LOGOUT, null);
+            receive(second, MessageType.ACTION_SUCCESS);
+            send(first, MessageType.GET_ROOMS, null);
+            assertEquals(1, receive(first, MessageType.ONLINE_COUNT).getData());
+        }
+    }
+
+    @Test
     void roomListInvalidJoinAndLeaveKeepAuthenticatedConnectionAlive() throws Exception {
         try (TestServer server = new TestServer()) {
             TCPClient client = server.client();

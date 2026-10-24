@@ -16,6 +16,10 @@ public class SessionManager {
         return true;
     }
 
+    public synchronized int onlineCount() {
+        return sessions.size();
+    }
+
     public synchronized void logout(int userId, Socket socket) {
         // Một kết nối chỉ được xóa phiên mà chính nó đang sở hữu.
         sessions.remove(userId, socket);

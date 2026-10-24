@@ -179,6 +179,9 @@ public class RoomController {
                     pendingRoomListNotice = null;
                 }
             }
+            case ONLINE_COUNT -> {
+                if (message.getData() instanceof Integer count) { roomList.updateOnlineCount(count); }
+            }
             case JOIN_SUCCESS -> {
                 if (message.getData() instanceof RoomInfo room) {
                     currentRoom = room;

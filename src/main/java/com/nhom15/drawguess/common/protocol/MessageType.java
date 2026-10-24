@@ -54,5 +54,7 @@ public enum MessageType {
     GET_CATALOG, CATALOG, EDIT_CATALOG, CATALOG_SAVED, CATALOG_FAILED,
     GAME_ERROR,
     HINT,
-    KICK_PLAYER, KICKED
+    KICK_PLAYER, KICKED,
+    // Số tài khoản đang đăng nhập trên server, gửi kèm ROOM_LIST.
+    ONLINE_COUNT
 }

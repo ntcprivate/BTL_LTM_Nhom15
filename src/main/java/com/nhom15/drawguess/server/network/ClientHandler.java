@@ -274,7 +274,11 @@ public class ClientHandler implements Runnable {
             return;
         }
         switch (message.getType()) {
-            case GET_ROOMS -> sendMessage(new Message(MessageType.ROOM_LIST, roomManager.getRooms()));
+            case GET_ROOMS -> {
+                sendMessage(new Message(MessageType.ROOM_LIST, roomManager.getRooms()));
+                // Đếm mọi tài khoản đã đăng nhập, kể cả người chưa vào phòng nào.
+                sendMessage(new Message(MessageType.ONLINE_COUNT, sessionManager.onlineCount()));
+            }
             case JOIN_ROOM -> {
                 if (!(message.getData() instanceof Integer roomId)) {
                     sendMessage(new Message(MessageType.JOIN_FAILED, "INVALID_REQUEST"));
