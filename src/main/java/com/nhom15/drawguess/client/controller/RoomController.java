@@ -10,7 +10,9 @@ import com.nhom15.drawguess.common.protocol.*;
 import javafx.scene.layout.StackPane;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 // Mọi phương thức của controller này được gọi trên JavaFX Application Thread.
 public class RoomController {
@@ -158,7 +160,9 @@ public class RoomController {
         if (message.getType() == MessageType.DRAW_WORD && message.getData() instanceof DrawingPrompt prompt
                 && currentRoom != null && currentRoom.getRoomId() == prompt.getRoomId()) {
             if (game != null) { game.close(); }
-            game = new GameController(root, user.getId(), prompt, send, this::returnToLobby, this::leave, logout);
+            Map<Integer, String> avatars = currentRoom.getPlayers().stream()
+                    .collect(Collectors.toMap(PlayerInfo::getUserId, PlayerInfo::getAvatarKey, (a, b) -> a));
+            game = new GameController(root, user.getId(), prompt, avatars, send, this::returnToLobby, this::leave, logout);
             return;
         }
         if (game != null) { game.handleMessage(message); }

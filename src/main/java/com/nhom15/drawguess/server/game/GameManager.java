@@ -249,6 +249,7 @@ public class GameManager implements AutoCloseable {
         broadcast(match, MessageType.ROUND_START, new RoundInfo(match.id, match.round, match.order.size(),
                 drawer.id, drawer.username, match.category, drawer.image, GUESS_SECONDS,
                 WordHints.mask(drawer.word, Set.of())));
+        broadcastScores(match, false);
         sendTimer(match);
         if (everyoneDone(match)) { endRound(match); }
     }
@@ -340,8 +341,10 @@ public class GameManager implements AutoCloseable {
             Player player = ordered.get(i);
             if (previous == null || player.score != previous.score
                     || Double.compare(player.average(), previous.average()) != 0) { rank = i + 1; }
+            boolean solvedRound = player.solved
+                    && (match.phase == GamePhase.GUESSING || match.phase == GamePhase.ROUND_END);
             result.add(new ScoreEntry(player.id, player.username, player.score, ranked ? rank : 0,
-                    player.average(), player.online));
+                    player.average(), player.online, solvedRound));
             previous = player;
         }
         return result;

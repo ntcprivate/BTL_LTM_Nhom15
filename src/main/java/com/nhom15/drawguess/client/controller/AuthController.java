@@ -32,6 +32,7 @@ public class AuthController {
         loginView.setOnLogin(this::login);
         loginView.setOnRegister(() -> {
             loginView.clearPassword();
+            registerView.setServerAddress(loginView.getServerAddress());
             UiTheme.show(root, registerView);
         });
         registerView.setOnRegister(this::register);
@@ -66,6 +67,7 @@ public class AuthController {
         }
         if (error != null) {
             loginView.showMessage(error, false);
+            if (server == null && validate(username, password) == null) { loginView.showServerSettings(true); }
             return;
         }
         loginView.setBusy(true);
@@ -109,6 +111,8 @@ public class AuthController {
                         loginView.clearPassword();
                         loginView.setBusy(false);
                         loginView.showMessage(failureMessage(result, MessageType.LOGIN_FAILED), false);
+                        // Không kết nối được thì mở sẵn phần cài đặt máy chủ để người chơi kiểm tra.
+                        if (result == null) { loginView.showServerSettings(true); }
                     });
                 }
             }

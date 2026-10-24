@@ -10,8 +10,16 @@ public class ScoreEntry implements Serializable {
     private final int rank;
     private final double averageGuessTime;
     private final boolean online;
+    // Đã đoán đúng trong vòng đang diễn ra; chỉ dùng để hiển thị, không lưu vào lịch sử.
+    private final boolean solvedRound;
 
     public ScoreEntry(int userId, String username, int score, int rank, double averageGuessTime, boolean online) {
+        this(userId, username, score, rank, averageGuessTime, online, false);
+    }
+
+    public ScoreEntry(int userId, String username, int score, int rank, double averageGuessTime, boolean online,
+                      boolean solvedRound) {
+        this.solvedRound = solvedRound;
         this.userId = userId;
         this.username = username;
         this.score = score;
@@ -26,4 +34,5 @@ public class ScoreEntry implements Serializable {
     public int getRank() { return rank; }
     public double getAverageGuessTime() { return averageGuessTime; }
     public boolean isOnline() { return online; }
+    public boolean isSolvedRound() { return solvedRound; }
 }

@@ -32,12 +32,12 @@ public class HistoryView extends VBox {
         getStyleClass().add("content-card");
         setSpacing(14); setPadding(new Insets(22));
         setMaxWidth(Double.MAX_VALUE); setMaxHeight(Double.MAX_VALUE);
-        Button refresh=new Button("Làm mới"); Button returnButton=new Button("Về danh sách phòng");
+        Button refresh=new Button("Làm mới"); Button returnButton=new Button("Về trang chủ");
         refresh.getStyleClass().add("secondary-button");
         returnButton.getStyleClass().add("ghost-button");
         refresh.setOnAction(e -> { clearSelection(); status.setText("Đang tải..."); UiTheme.status(status,"info"); send.accept(new Message(MessageType.GET_HISTORY)); });
         returnButton.setOnAction(e -> { clearSelection(); back.run(); });
-        matches.setMinHeight(150); matches.setPrefHeight(180);
+        matches.setMinHeight(110); matches.setPrefHeight(220);
         matches.setCellFactory(list -> new ListCell<>() {
             @Override protected void updateItem(HistoryData.Summary match, boolean empty) {
                 super.updateItem(match, empty);
@@ -92,7 +92,12 @@ public class HistoryView extends VBox {
         guessesTitle.getStyleClass().add("history-block-title");
         reloadImage.getStyleClass().add("secondary-button");
         roundInfo.getStyleClass().add("round-summary");
-        VBox preview = new VBox(12, previewTitle, rounds, roundInfo, imageStatus, reloadImage,
+        imageStatus.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(imageStatus, Priority.ALWAYS);
+        reloadImage.setMinWidth(Region.USE_PREF_SIZE);
+        HBox imageActions = new HBox(10, imageStatus, reloadImage);
+        imageActions.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        VBox preview = new VBox(12, previewTitle, rounds, roundInfo, imageActions,
                 drawing, guessesTitle, guessCards);
         preview.setPadding(new Insets(14));
         ScrollPane imageScroll = new ScrollPane(preview);
@@ -100,12 +105,16 @@ public class HistoryView extends VBox {
         drawing.fitWidthProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
                 () -> Math.max(1, Math.min(500, imageScroll.getViewportBounds().getWidth() - 30)),
                 imageScroll.viewportBoundsProperty()));
-        drawing.fitHeightProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
-                () -> Math.max(180, Math.min(500, imageScroll.getViewportBounds().getHeight() - 200)),
-                imageScroll.viewportBoundsProperty()));
+        // Tranh vuông nên chiều cao theo chiều rộng khung, để ảnh to nhất có thể.
+        drawing.fitHeightProperty().bind(drawing.fitWidthProperty());
         SplitPane content = new SplitPane(detailScroll, imageScroll);
-        content.setDividerPositions(0.52);
-        VBox.setVgrow(content, Priority.ALWAYS);
+        content.setDividerPositions(0.46);
+        // Danh sách trận và phần chi tiết chia theo chiều dọc; kéo vạch ngăn để đổi kích thước.
+        SplitPane body = new SplitPane(matches, content);
+        body.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        body.setDividerPositions(0.3);
+        SplitPane.setResizableWithParent(matches, false);
+        VBox.setVgrow(body, Priority.ALWAYS);
         matches.getSelectionModel().selectedItemProperty().addListener((o,old,m) -> {
             clearSelection(); selectedId=m==null ? null : m.id();
             if(m!=null) { status.setText("Đang tải chi tiết..."); UiTheme.status(status,"info"); send.accept(new Message(MessageType.GET_HISTORY_DETAIL,m.id())); }
@@ -122,7 +131,7 @@ public class HistoryView extends VBox {
         HBox header = new HBox(16, heading, headerSpacer, painting);
         header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         UiTheme.status(status, "info");
-        getChildren().addAll(header, new HBox(12,refresh,returnButton),matches,status,content);
+        getChildren().addAll(header, new HBox(12,refresh,returnButton),status,body);
     }
     private void clearSelection() {
         selectedId = null;

@@ -16,6 +16,7 @@ public class RegisterView extends VBox {
     private final Button registerButton = new Button("Đăng ký");
     private final Hyperlink loginLink = new Hyperlink("Đã có tài khoản? Đăng nhập");
     private final Label statusLabel = new Label("Nhập thông tin để tạo tài khoản.");
+    private final Label serverSummary = new Label();
 
     public RegisterView() {
         UiTheme.apply(this);
@@ -45,9 +46,14 @@ public class RegisterView extends VBox {
         statusLabel.setWrapText(true);
         statusLabel.setMaxWidth(Double.MAX_VALUE);
         UiTheme.status(statusLabel, "info");
+        serverSummary.getStyleClass().add("server-summary");
+        serverSummary.setWrapText(true);
+        serverSummary.setMaxWidth(Double.MAX_VALUE);
+        serverSummary.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         getChildren().addAll(painting, brand, title, subtitle,
                 field("Tên đăng nhập", usernameField), field("Mật khẩu", passwordField),
-                field("Nhập lại mật khẩu", confirmPasswordField), registerButton, loginLink, statusLabel);
+                field("Nhập lại mật khẩu", confirmPasswordField), registerButton, loginLink,
+                serverSummary, statusLabel);
     }
 
     private VBox field(String text, javafx.scene.Node input) {
@@ -56,6 +62,12 @@ public class RegisterView extends VBox {
         VBox group = new VBox(6, label, input);
         group.setMaxWidth(Double.MAX_VALUE);
         return group;
+    }
+
+    // Tài khoản được tạo trên máy chủ đang nhập ở màn hình đăng nhập.
+    public void setServerAddress(String address) {
+        serverSummary.setText("Tài khoản sẽ được tạo trên máy chủ " + address
+                + ". Muốn đổi máy chủ, hãy quay lại màn hình đăng nhập.");
     }
 
     public String getUsername() {

@@ -56,7 +56,7 @@ class AdminHistoryViewTest {
             ListView<?> words=(ListView<?>)view.lookupAll(".list-view").stream().filter(n->((ListView<?>)n).getItems().stream().anyMatch(Word.class::isInstance)).findFirst().orElseThrow();
             assertEquals(1,words.getItems().size());
             TextField name=(TextField)view.lookupAll(".text-field").stream().filter(n->n instanceof TextField t && t.getPromptText().startsWith("Từ khóa")).findFirst().orElseThrow(); name.setText("Con chó");
-            Parent box=name.getParent(); Button add=(Button)box.lookupAll(".button").stream().filter(n->((Button)n).getText().equals("Thêm")).findFirst().orElseThrow(); add.fire();
+            Parent box=name.getParent().getParent(); Button add=(Button)box.lookupAll(".button").stream().filter(n->((Button)n).getText().equals("Thêm")).findFirst().orElseThrow(); add.fire();
             CatalogData.Edit edit=assertInstanceOf(CatalogData.Edit.class,sent.getLast().getData()); assertEquals("WORD",edit.entity()); assertEquals("Con chó",edit.name()); assertEquals(1,edit.categoryId());
             view.handleMessage(new Message(MessageType.CATALOG_FAILED,"DUPLICATE_OR_INVALID_REFERENCE")); assertFalse(view.isDisabled()); snapshot(view,"admin.png");
         });

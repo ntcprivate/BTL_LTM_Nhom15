@@ -7,8 +7,11 @@ import com.nhom15.drawguess.common.protocol.UserInfo;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -19,6 +22,8 @@ import java.util.Locale;
 
 public class RoomListView extends VBox {
     private final ListView<RoomInfo> rooms = new ListView<>();
+    private final CheckBox joinableOnly = new CheckBox("Chỉ hiện phòng còn chỗ");
+    private List<RoomInfo> allRooms = List.of();
     private final Label availableRooms = new Label("0");
     private final Label activeRooms = new Label("0");
     private final Label onlinePlayers = new Label("0");
@@ -70,6 +75,23 @@ public class RoomListView extends VBox {
 
         rooms.setPrefHeight(430);
         VBox.setVgrow(rooms, Priority.ALWAYS);
+        rooms.setPlaceholder(new Label("Không có phòng nào còn chỗ. Bỏ chọn bộ lọc để xem tất cả các phòng."));
+        // Nhấp đúp hoặc Enter để vào phòng đang chọn.
+        rooms.setOnMouseClicked(event -> {
+            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2
+                    && getSelectedRoom() != null && !joinButton.isDisabled()) { join.run(); }
+        });
+        rooms.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER && getSelectedRoom() != null && !joinButton.isDisabled()) { join.run(); }
+        });
+        joinableOnly.setSelected(true);
+        joinableOnly.selectedProperty().addListener((observable, before, selected) -> applyFilter());
+        Label hint = new Label("Nhấp đúp vào phòng để vào nhanh");
+        hint.getStyleClass().add("subtle-text");
+        Region filterSpacer = new Region();
+        HBox.setHgrow(filterSpacer, Priority.ALWAYS);
+        HBox filterRow = new HBox(12, joinableOnly, filterSpacer, hint);
+        filterRow.setAlignment(Pos.CENTER_LEFT);
         rooms.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
             @Override
             protected void updateItem(RoomInfo room, boolean empty) {
@@ -123,7 +145,7 @@ public class RoomListView extends VBox {
         actions.setAlignment(Pos.CENTER);
         status.setWrapText(true);
         UiTheme.status(status, "info");
-        getChildren().addAll(header, statistics, rooms, actions, status);
+        getChildren().addAll(header, statistics, filterRow, rooms, actions, status);
         updateUser(user);
     }
 
@@ -141,18 +163,28 @@ public class RoomListView extends VBox {
     public RoomInfo getSelectedRoom() { return rooms.getSelectionModel().getSelectedItem(); }
 
     public void updateRooms(List<RoomInfo> data) {
-        RoomInfo selected = getSelectedRoom();
-        rooms.getItems().setAll(data);
+        allRooms = List.copyOf(data);
+        applyFilter();
         availableRooms.setText(String.valueOf(data.stream().filter(room -> room.getStatus() == RoomStatus.WAITING
                 || room.getStatus() == RoomStatus.READY_CHECK).count()));
         activeRooms.setText(String.valueOf(data.stream().filter(room -> room.getStatus() == RoomStatus.PLAYING
                 || room.getStatus() == RoomStatus.GAME_STARTING).count()));
         onlinePlayers.setText(String.valueOf(data.stream().flatMap(room -> room.getPlayers().stream())
                 .filter(PlayerInfo::isOnline).count()));
+    }
+
+    private void applyFilter() {
+        RoomInfo selected = getSelectedRoom();
+        rooms.getItems().setAll(allRooms.stream().filter(room -> !joinableOnly.isSelected() || isJoinable(room)).toList());
         if (selected != null) {
-            data.stream().filter(r -> r.getRoomId() == selected.getRoomId()).findFirst()
+            rooms.getItems().stream().filter(r -> r.getRoomId() == selected.getRoomId()).findFirst()
                     .ifPresent(r -> rooms.getSelectionModel().select(r));
         }
+    }
+
+    private static boolean isJoinable(RoomInfo room) {
+        return (room.getStatus() == RoomStatus.WAITING || room.getStatus() == RoomStatus.READY_CHECK)
+                && room.getPlayers().size() < 8;
     }
 
     public void setBusy(boolean busy) {

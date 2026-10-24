@@ -19,6 +19,9 @@ public class LoginView extends VBox {
     private final Button loginButton = new Button("Đăng nhập");
     private final Hyperlink registerLink = new Hyperlink("Chưa có tài khoản? Đăng ký");
     private final Label statusLabel = new Label("Nhập tài khoản để đăng nhập.");
+    private final Label serverSummary = new Label();
+    private final Hyperlink serverToggle = new Hyperlink("Đổi máy chủ");
+    private final HBox serverRow;
 
     public LoginView() {
         this("localhost", 5555);
@@ -60,14 +63,22 @@ public class LoginView extends VBox {
         VBox hostGroup = field("Địa chỉ server", serverHostField);
         VBox portGroup = field("Cổng", serverPortField);
         HBox.setHgrow(hostGroup, Priority.ALWAYS);
-        HBox serverRow = new HBox(10, hostGroup, portGroup);
+        serverRow = new HBox(10, hostGroup, portGroup);
         serverRow.setMaxWidth(Double.MAX_VALUE);
+        // Phần lớn người chơi không cần đổi máy chủ nên mặc định chỉ hiện một dòng tóm tắt.
+        serverSummary.getStyleClass().add("server-summary");
+        serverHostField.textProperty().addListener((observable, before, after) -> updateServerSummary());
+        serverPortField.textProperty().addListener((observable, before, after) -> updateServerSummary());
+        serverToggle.setOnAction(event -> showServerSettings(!serverRow.isVisible()));
+        HBox summaryRow = new HBox(6, serverSummary, serverToggle);
+        summaryRow.setAlignment(Pos.CENTER);
+        updateServerSummary();
+        showServerSettings(false);
 
         VBox usernameGroup = field("Tên đăng nhập", usernameField);
         VBox passwordGroup = field("Mật khẩu", passwordField);
-        getChildren().addAll(painting, brand, title, subtitle, serverRow,
-                new javafx.scene.control.Separator(), usernameGroup, passwordGroup,
-                loginButton, registerLink, statusLabel);
+        getChildren().addAll(painting, brand, title, subtitle, usernameGroup, passwordGroup,
+                loginButton, registerLink, new javafx.scene.control.Separator(), summaryRow, serverRow, statusLabel);
     }
 
     private VBox field(String text, javafx.scene.Node input) {
@@ -76,6 +87,20 @@ public class LoginView extends VBox {
         VBox group = new VBox(6, label, input);
         group.setMaxWidth(Double.MAX_VALUE);
         return group;
+    }
+
+    private void updateServerSummary() {
+        serverSummary.setText("Máy chủ: " + getServerAddress());
+    }
+
+    public String getServerAddress() {
+        return (getServerHost().isEmpty() ? "?" : getServerHost()) + ":" + (getServerPort().isEmpty() ? "?" : getServerPort());
+    }
+
+    public void showServerSettings(boolean visible) {
+        serverRow.setVisible(visible);
+        serverRow.setManaged(visible);
+        serverToggle.setText(visible ? "Ẩn cài đặt máy chủ" : "Đổi máy chủ");
     }
 
     public String getServerHost() {
@@ -113,6 +138,7 @@ public class LoginView extends VBox {
     public void setBusy(boolean busy) {
         serverHostField.setDisable(busy);
         serverPortField.setDisable(busy);
+        serverToggle.setDisable(busy);
         usernameField.setDisable(busy);
         passwordField.setDisable(busy);
         loginButton.setDisable(busy);

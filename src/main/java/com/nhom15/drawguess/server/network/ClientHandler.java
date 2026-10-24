@@ -35,6 +35,8 @@ public class ClientHandler implements Runnable {
     private final RoomManager roomManager;
     private final LongSupplier clock;
     private final HistoryImageService historyImages;
+    private final HistoryDAO historyDAO;
+    private final CatalogDAO catalogDAO;
     private UserInfo currentUser;
 
     private ObjectOutputStream output;
@@ -69,6 +71,15 @@ public class ClientHandler implements Runnable {
     public ClientHandler(Socket socket, int clientId, UserDAO userDAO,
                          SessionManager sessionManager, RoomManager roomManager, LongSupplier clock,
                          HistoryImageService historyImages) {
+        this(socket, clientId, userDAO, sessionManager, roomManager, clock, historyImages,
+                new HistoryDAO(), new CatalogDAO());
+    }
+
+    public ClientHandler(Socket socket, int clientId, UserDAO userDAO,
+                         SessionManager sessionManager, RoomManager roomManager, LongSupplier clock,
+                         HistoryImageService historyImages, HistoryDAO historyDAO, CatalogDAO catalogDAO) {
+        this.historyDAO = historyDAO;
+        this.catalogDAO = catalogDAO;
         this.socket = socket;
         this.clientId = clientId;
         this.userDAO = userDAO;
@@ -226,19 +237,19 @@ public class ClientHandler implements Runnable {
         if (catalog && !"ADMIN".equals(currentUser.getRole())) { sendMessage(new Message(failure,"FORBIDDEN")); return; }
         try {
             switch (message.getType()) {
-                case GET_HISTORY -> sendMessage(new Message(MessageType.HISTORY_LIST,new HistoryDAO().list(currentUser.getId())));
+                case GET_HISTORY -> sendMessage(new Message(MessageType.HISTORY_LIST,historyDAO.list(currentUser.getId())));
                 case GET_HISTORY_DETAIL -> {
                     if (!(message.getData() instanceof String id)) throw new IllegalArgumentException("INVALID_REQUEST");
                     try { java.util.UUID.fromString(id); } catch (IllegalArgumentException e) { throw new IllegalArgumentException("INVALID_REQUEST"); }
-                    var detail = new HistoryDAO().detail(currentUser.getId(),id);
+                    var detail = historyDAO.detail(currentUser.getId(),id);
                     sendMessage(new Message(detail==null ? failure : MessageType.HISTORY_DETAIL,detail==null ? "NOT_FOUND_OR_UNFINISHED" : detail));
                 }
-                case GET_CATALOG -> sendMessage(new Message(MessageType.CATALOG,new CatalogDAO().list()));
+                case GET_CATALOG -> sendMessage(new Message(MessageType.CATALOG,catalogDAO.list()));
                 case EDIT_CATALOG -> {
                     if (!(message.getData() instanceof CatalogData.Edit edit)) throw new IllegalArgumentException("INVALID_REQUEST");
-                    new CatalogDAO().edit(edit);
+                    catalogDAO.edit(edit);
                     sendMessage(new Message(MessageType.CATALOG_SAVED));
-                    sendMessage(new Message(MessageType.CATALOG,new CatalogDAO().list()));
+                    sendMessage(new Message(MessageType.CATALOG,catalogDAO.list()));
                 }
                 default -> { }
             }

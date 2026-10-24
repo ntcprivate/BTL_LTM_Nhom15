@@ -170,6 +170,34 @@
     -fx-opacity: 0.52;
 }
 
+/* Chỉ hiện khi điều hướng bằng bàn phím (Tab), không hiện khi bấm chuột. */
+.button:focus-visible,
+.toggle-button:focus-visible,
+.hyperlink:focus-visible,
+.check-box:focus-visible > .box,
+.list-view:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+}
+
+/* B2: nút bật/tắt (Tẩy) phải nhìn rõ đang bật. */
+.tool-toggle {
+    -fx-background-color: #fff9df;
+    -fx-text-fill: #173f73;
+    -fx-border-color: #d8b55b;
+}
+
+.tool-toggle:hover {
+    -fx-background-color: #fff1b8;
+}
+
+.tool-toggle:selected {
+    -fx-background-color: linear-gradient(to right, #f8c537, #f59e0b);
+    -fx-text-fill: #132e58;
+    -fx-border-color: #b45309;
+    -fx-border-width: 2px;
+}
+
 .hyperlink {
     -fx-text-fill: #1d4ed8;
     -fx-font-weight: 700;
@@ -207,7 +235,7 @@
 
 .stat-caption {
     -fx-text-fill: #7b6a42;
-    -fx-font-size: 9px;
+    -fx-font-size: 11px;
     -fx-font-weight: 800;
 }
 
@@ -233,15 +261,15 @@
 }
 
 .room-description {
-    -fx-text-fill: #74717a;
-    -fx-font-size: 11px;
+    -fx-text-fill: #6b6874;
+    -fx-font-size: 12px;
 }
 
 .room-player-count,
 .room-status-badge {
     -fx-background-radius: 999px;
     -fx-padding: 6px 11px;
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -321,7 +349,7 @@
 }
 
 .player-state {
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 700;
 }
 
@@ -383,6 +411,11 @@
     -fx-font-weight: 800;
 }
 
+.timer-urgent {
+    -fx-background-color: #be123c;
+    -fx-text-fill: #fff1f2;
+}
+
 .game-word {
     -fx-text-fill: #1d4ed8;
     -fx-font-size: 18px;
@@ -403,7 +436,7 @@
 }
 
 .kick-button {
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-padding: 3px 9px;
 }
 
@@ -466,8 +499,8 @@
 .ranking-meta,
 .round-word,
 .guess-time {
-    -fx-text-fill: #74717a;
-    -fx-font-size: 10px;
+    -fx-text-fill: #6b6874;
+    -fx-font-size: 12px;
 }
 
 .history-state,
@@ -475,7 +508,7 @@
 .history-rank {
     -fx-background-radius: 999px;
     -fx-padding: 5px 9px;
-    -fx-font-size: 10px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -547,7 +580,7 @@
 .guess-result {
     -fx-background-radius: 999px;
     -fx-padding: 4px 8px;
-    -fx-font-size: 10px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -573,7 +606,7 @@
     -fx-background-radius: 0 9px 0 9px;
     -fx-padding: 5px 9px;
     -fx-text-fill: #ffe8a3;
-    -fx-font-size: 10px;
+    -fx-font-size: 11px;
     -fx-font-weight: 700;
 }
 
@@ -592,7 +625,7 @@
 
 .avatar-name {
     -fx-text-fill: #9a6a08;
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -606,7 +639,7 @@
 
 .user-profile-text > .label:first-child {
     -fx-text-fill: #8a681f;
-    -fx-font-size: 8px;
+    -fx-font-size: 10px;
     -fx-font-weight: 800;
 }
 
@@ -661,7 +694,7 @@
     -fx-background-radius: 999px;
     -fx-padding: 4px 9px;
     -fx-text-fill: #102c5c;
-    -fx-font-size: 10px;
+    -fx-font-size: 11px;
     -fx-font-weight: 900;
 }
 
@@ -745,10 +778,154 @@
 
 .avatar-option-name {
     -fx-text-fill: #173f73;
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
 .avatar-option:selected .avatar-option-name {
     -fx-text-fill: #fff7d1;
+}
+
+/* B14: ô chọn màu chỉ hiện ô màu, không hiện tên tiếng Anh ("Black"). */
+.drawing-color .color-picker-label {
+    -fx-content-display: graphic-only;
+}
+
+/* B8: phản hồi khi đoán. */
+.guess-row {
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-border-color: transparent;
+    -fx-border-width: 2px;
+    -fx-padding: 2px;
+}
+
+.guess-row-correct {
+    -fx-background-color: #eef6d5;
+    -fx-border-color: #65a30d;
+}
+
+.guess-row-wrong {
+    -fx-background-color: #ffe4e6;
+    -fx-border-color: #e11d48;
+}
+
+/* B4: bảng điểm trong trận. */
+.score-list .list-cell {
+    -fx-padding: 5px 6px;
+}
+
+.score-list .list-cell:selected:filled,
+.score-list .list-cell:hover:filled {
+    -fx-background-color: transparent;
+}
+
+.score-row {
+    -fx-padding: 5px 8px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-color: transparent;
+}
+
+.score-row-self {
+    -fx-background-color: #fff1b8;
+    -fx-border-color: #e9b949;
+}
+
+.score-position {
+    -fx-alignment: center;
+    -fx-background-color: #173f84;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #ffe08a;
+    -fx-font-weight: 900;
+    -fx-font-size: 12px;
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+}
+
+.score-name {
+    -fx-text-fill: #102c5c;
+    -fx-font-weight: 800;
+    -fx-font-size: 13px;
+}
+
+.score-points {
+    -fx-text-fill: #1d4f91;
+    -fx-font-weight: 800;
+}
+
+.score-badge {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.score-badge-solved { -fx-text-fill: #4d6812; }
+.score-badge-drawer { -fx-text-fill: #9a6700; }
+.score-badge-offline { -fx-text-fill: #be123c; }
+.score-badge-drawing { -fx-text-fill: #1d4f91; }
+.score-badge-guessing { -fx-text-fill: #1d4ed8; }
+
+/* B5: màn hình kết quả. */
+.result-panel {
+    -fx-background-color: linear-gradient(to bottom, #fffdf2, #fff3c4);
+    -fx-background-radius: 10px;
+    -fx-padding: 26px 20px 20px 20px;
+}
+
+.result-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #102c5c;
+}
+
+.result-winner {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #9a6700;
+    -fx-text-alignment: center;
+}
+
+.podium-name {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #102c5c;
+}
+
+.podium-score {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #1d4f91;
+}
+
+.podium-step {
+    -fx-background-radius: 12px 12px 0 0;
+    -fx-border-radius: 12px 12px 0 0;
+    -fx-border-width: 2px;
+}
+
+.podium-step-1 { -fx-background-color: linear-gradient(to bottom, #fde68a, #f59e0b); -fx-border-color: #b45309; }
+.podium-step-2 { -fx-background-color: linear-gradient(to bottom, #f1f5f9, #94a3b8); -fx-border-color: #64748b; }
+.podium-step-3 { -fx-background-color: linear-gradient(to bottom, #fed7aa, #c2703d); -fx-border-color: #9a4a1c; }
+
+.podium-rank {
+    -fx-font-size: 30px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #102c5c;
+}
+
+.result-other {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #173f73;
+}
+
+/* B18: dòng tóm tắt server ở màn hình đăng nhập / đăng ký. */
+.server-summary {
+    -fx-text-fill: #62657a;
+    -fx-font-size: 13px;
+}
+
+/* B15: trạng thái riêng của từng khối trong màn hình quản trị. */
+.card-status {
+    -fx-font-size: 13px;
 }

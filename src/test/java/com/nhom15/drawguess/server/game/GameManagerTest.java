@@ -139,6 +139,21 @@ class GameManagerTest {
     }
 
     @Test
+    void scoresMarkPlayersWhoSolvedTheCurrentRoundOnly() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.guess(2, "con mèo", 1);
+            assertTrue(f.entry(2).isSolvedRound());
+            assertFalse(f.entry(3).isSolvedRound());
+            f.advance(30);
+            assertTrue(f.entry(2).isSolvedRound(), "Dấu ✓ vẫn hiện trong lúc công bố đáp án");
+            f.advance(3);
+            assertEquals(1, f.round().getRoundIndex());
+            assertFalse(f.entry(2).isSolvedRound(), "Vòng mới phải xóa dấu ✓ của vòng trước");
+        }
+    }
+
+    @Test
     void uploadTimeoutUsesBlankDrawingsAndContinuesMatch() throws Exception {
         try (Fixture f = new Fixture()) {
             f.advance(60);
@@ -317,9 +332,10 @@ class GameManagerTest {
         DrawingPrompt prompt(int id) { return (DrawingPrompt) last(id, MessageType.DRAW_WORD).getData(); }
         RoundInfo round() { return (RoundInfo) last(1, MessageType.ROUND_START).getData(); }
         GuessResult guessResult(int id) { return (GuessResult) last(id, MessageType.GUESS_RESULT).getData(); }
-        int score(int id) {
+        int score(int id) { return entry(id).getScore(); }
+        ScoreEntry entry(int id) {
             List<?> scores = (List<?>) last(2, MessageType.SCORE_UPDATE).getData();
-            return scores.stream().map(ScoreEntry.class::cast).filter(s -> s.getUserId() == id).findFirst().orElseThrow().getScore();
+            return scores.stream().map(ScoreEntry.class::cast).filter(s -> s.getUserId() == id).findFirst().orElseThrow();
         }
         void advance(int seconds) { clock.addAndGet(seconds * 1_000_000_000L); game.tick(1); }
         void upload(int id, byte[] image) { game.upload(1, id, new DrawUpload(matchId, image), sender(id)); }

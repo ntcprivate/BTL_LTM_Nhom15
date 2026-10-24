@@ -15,7 +15,7 @@ Mức độ: 🔴 nghiêm trọng · 🟠 nên sửa · 🟡 nhỏ / trau chuố
 | Nhóm | Đã xong | Tổng |
 |---|---|---|
 | A. Luật chơi | 3 | 13 |
-| B. UI/UX | 0 | 19 |
+| B. UI/UX | 19 | 19 |
 | C. Code, mạng, bảo mật | 0 | 12 |
 
 ---
@@ -43,29 +43,29 @@ Mức độ: 🔴 nghiêm trọng · 🟠 nên sửa · 🟡 nhỏ / trau chuố
 ## B. Giao diện và trải nghiệm (UI/UX)
 
 ### Màn hình chơi game
-- [ ] 🔴 **B1 — Thanh công cụ vẽ bị cắt chữ** ở cửa sổ khoảng 1000px ("…", "↶ Hoàn …", "Xóa tra…"). Chia 2 hàng hoặc dùng nút icon kèm tooltip. *Nút Hoàn tác (A12) làm lỗi này nặng thêm.*
-- [ ] 🔴 **B2 — Không biết nút Tẩy đang bật hay tắt**: thêm `.toggle-button:selected` trong `app.css`, đổi chữ thành "Đang tẩy".
-- [ ] 🔴 **B3 — Hỏi xác nhận khi bấm "Rời phòng" / "Đăng xuất" trong trận**; đưa hai nút ra xa ô đoán.
-- [ ] 🟠 **B4 — Bảng điểm**: thêm avatar, tô đậm dòng của mình, đánh dấu người đang vẽ, ✓ cho người đã đoán đúng.
-- [ ] 🟠 **B5 — Màn hình kết quả**: làm nổi bật người thắng (bục 1-2-3, vương miện).
-- [ ] 🟠 **B6 — Đồng hồ đổi màu đỏ / nhấp nháy khi còn ≤ 10 giây.**
-- [ ] 🟠 **B7 — Dòng trạng thái và placeholder ô đoán bị cắt**: cho tự xuống dòng, rút gọn placeholder.
-- [ ] 🟡 **B8 — Phản hồi khi đoán**: ô nhập nháy xanh/đỏ, rung nhẹ khi sai, có thể thêm âm thanh.
+- [x] 🔴 **B1 — Thanh công cụ vẽ bị cắt chữ** ở cửa sổ khoảng 1000px ("…", "↶ Hoàn …", "Xóa tra…"). Chia 2 hàng hoặc dùng nút icon kèm tooltip. *Nút Hoàn tác (A12) làm lỗi này nặng thêm.* — đã làm: 2 hàng công cụ, nút không còn bị cắt chữ
+- [x] 🔴 **B2 — Không biết nút Tẩy đang bật hay tắt**: thêm `.toggle-button:selected` trong `app.css`, đổi chữ thành "Đang tẩy". — đã làm: nền vàng + chữ "✓ Đang tẩy"
+- [x] 🔴 **B3 — Hỏi xác nhận khi bấm "Rời phòng" / "Đăng xuất" trong trận**; đưa hai nút ra xa ô đoán. — đã làm: hỏi xác nhận; nút chuyển lên thanh tiêu đề
+- [x] 🟠 **B4 — Bảng điểm**: thêm avatar, tô đậm dòng của mình, đánh dấu người đang vẽ, ✓ cho người đã đoán đúng. — đã làm: avatar, "• Bạn"; pha vẽ hiện "Đang vẽ", pha đoán hiện "Người vẽ" / "Đang đoán" / "✓ Đoán đúng"
+- [x] 🟠 **B5 — Màn hình kết quả**: làm nổi bật người thắng (bục 1-2-3, vương miện). — đã làm: bục 1-2-3 + "★ Người thắng"
+- [x] 🟠 **B6 — Đồng hồ đổi màu đỏ / nhấp nháy khi còn ≤ 10 giây.** — đã làm: chip đỏ + nhịp đập khi ≤ 10 giây
+- [x] 🟠 **B7 — Dòng trạng thái và placeholder ô đoán bị cắt**: cho tự xuống dòng, rút gọn placeholder. — đã làm: dòng trạng thái tự xuống dòng, placeholder "Nhập đáp án..."
+- [x] 🟡 **B8 — Phản hồi khi đoán**: ô nhập nháy xanh/đỏ, rung nhẹ khi sai, có thể thêm âm thanh. — đã làm: nháy xanh/đỏ + rung; **chưa có âm thanh** (cần thêm thư viện javafx-media)
 
 ### Điều hướng và thao tác
-- [ ] 🟠 **B9 — Nút "Về danh sách phòng" ở Lịch sử thực ra về trang chủ** (`HistoryView.java:35`). Đổi thành "Về trang chủ".
-- [ ] 🟠 **B10 — Nhấp đúp để vào phòng** và bộ lọc "Chỉ hiện phòng vào được" (`RoomListView`).
-- [ ] 🟠 **B11 — Viền focus cho nút** khi dùng phím Tab: `.button:focused { -fx-border-color: #1d4ed8; -fx-border-width: 2; }`.
-- [ ] 🟠 **B12 — Màn hình đăng ký không cho biết đang đăng ký vào server nào**: hiện địa chỉ server hoặc thêm ô nhập.
+- [x] 🟠 **B9 — Nút "Về danh sách phòng" ở Lịch sử thực ra về trang chủ** (`HistoryView.java:35`). Đổi thành "Về trang chủ". — đã làm
+- [x] 🟠 **B10 — Nhấp đúp để vào phòng** và bộ lọc "Chỉ hiện phòng vào được" (`RoomListView`). — đã làm: nhấp đúp / Enter; bộ lọc bật sẵn
+- [x] 🟠 **B11 — Viền focus cho nút** khi dùng phím Tab: `.button:focused { -fx-border-color: #1d4ed8; -fx-border-width: 2; }`. — đã làm: dùng `:focus-visible`, chỉ hiện khi bấm Tab
+- [x] 🟠 **B12 — Màn hình đăng ký không cho biết đang đăng ký vào server nào**: hiện địa chỉ server hoặc thêm ô nhập. — đã làm
 
 ### Chi tiết và trau chuốt
-- [ ] 🟡 **B13 — Chữ quá nhỏ** (9–11px ở `app.css` dòng 210, 470, 550…): nâng chữ thường lên tối thiểu khoảng 12px.
-- [ ] 🟡 **B14 — Chữ tiếng Anh lẫn vào**: "Black" ở ô chọn màu; EASY/MEDIUM/HARD → Dễ / Trung bình / Khó.
-- [ ] 🟡 **B15 — Admin**: thêm nhãn cho ô nhập, đổi "Sửa mục chọn" cho rõ nghĩa, tách "Đăng xuất" khỏi "Làm mới", hiện lỗi gần chỗ thao tác.
-- [ ] 🟡 **B16 — Lịch sử**: danh sách trận quá thấp, ảnh tranh bị cắt và nhỏ, phải cuộn.
-- [ ] 🟡 **B17 — Phòng chờ**: dòng "Sẵn sàng: 2/3" trùng với thẻ thống kê; thay bằng hướng dẫn việc cần làm tiếp.
-- [ ] 🟡 **B18 — Đăng nhập**: thu gọn "Địa chỉ server / Cổng" vào mục "⚙ Cài đặt server".
-- [ ] 🟡 **B19 — Hình nền động chạy 60 khung hình/giây cả khi đang chơi** (`AnimatedStarryBackdrop`): tạm dừng hoặc giảm tốc trong trận.
+- [x] 🟡 **B13 — Chữ quá nhỏ** (9–11px ở `app.css` dòng 210, 470, 550…): nâng chữ thường lên tối thiểu khoảng 12px. — đã làm
+- [x] 🟡 **B14 — Chữ tiếng Anh lẫn vào**: "Black" ở ô chọn màu; EASY/MEDIUM/HARD → Dễ / Trung bình / Khó. — đã làm
+- [x] 🟡 **B15 — Admin**: thêm nhãn cho ô nhập, đổi "Sửa mục chọn" cho rõ nghĩa, tách "Đăng xuất" khỏi "Làm mới", hiện lỗi gần chỗ thao tác. — đã làm: nút "Thêm / Cập nhật / Xóa" kèm tooltip
+- [x] 🟡 **B16 — Lịch sử**: danh sách trận quá thấp, ảnh tranh bị cắt và nhỏ, phải cuộn. — đã làm: danh sách và chi tiết chia theo chiều dọc, kéo được; ảnh to theo chiều rộng khung
+- [x] 🟡 **B17 — Phòng chờ**: dòng "Sẵn sàng: 2/3" trùng với thẻ thống kê; thay bằng hướng dẫn việc cần làm tiếp. — đã làm
+- [x] 🟡 **B18 — Đăng nhập**: thu gọn "Địa chỉ server / Cổng" vào mục "⚙ Cài đặt server". — đã làm: tự mở lại khi không kết nối được
+- [x] 🟡 **B19 — Hình nền động chạy 60 khung hình/giây cả khi đang chơi** (`AnimatedStarryBackdrop`): tạm dừng hoặc giảm tốc trong trận. — đã làm
 
 ---
 
@@ -90,6 +90,25 @@ Mức độ: 🔴 nghiêm trọng · 🟠 nên sửa · 🟡 nhỏ / trau chuố
 - [ ] 🟡 **C12 — Tài liệu**: ghi "JDK 24 trở lên" (JDK 25 chạy được); ghi rõ ADMIN không vào phòng chơi.
 
 ---
+
+## D. Hiệu năng (giật khi di chuột / khi vẽ)
+
+Đo trên máy 1280×800, phóng 200% (JavaFX vẽ 2560×1600), GPU Direct3D, cửa sổ toàn màn hình.
+Mức mượt là ≤ 16.7 ms/khung (60 FPS). Mỗi số là trung bình của 2 lần chạy, mỗi lần một JVM mới.
+Công cụ đo: `mvn -q "-Ddrawguess.perf=true" "-Dtest=PerfProbeTest" "-Dperf.scenario=menu-move" test`
+(tình huống: `menu-idle`, `menu-move`, `draw-long`, `draw-short`; kết quả nằm trong `target/perf.txt`).
+Màn hình phải đang bật và cửa sổ đo không bị che, nếu không số đo sẽ sai.
+
+- [x] **D1 — Cache khung nội dung sau nền động** (`AnimatedStarryBackdrop.followContent`): menu 68 ms (15 FPS) → **12 ms (83 FPS)**. Đã kiểm tra chữ vẫn sắc nét ở 200%.
+- [x] **D2 — Tách bóng đổ khỏi khung chứa canvas** (lớp `canvas-frame` riêng, được cache): vẽ nét dài 22.5 → 17.6 ms; nét ngắn 30 → 18.5 ms.
+- [x] **D3 — Hoàn tác lưu theo nét vẽ, không chụp ảnh canvas mỗi lần nhấn chuột**: khung > 25 ms khi vẽ nét ngắn 75 → 18 (trên 239 khung); trung bình ~17 ms (~59 FPS).
+
+| Thử nghiệm | Trước → Sau | Kết luận |
+|---|---|---|
+| D1 cache khung nội dung | Menu 68 ms → 12 ms | Giữ |
+| D2 tách và cache bóng đổ khung vẽ | Vẽ 22.5 / 30 ms → 17.6 / 18.5 ms | Giữ |
+| D3 hoàn tác theo nét | Khung chậm khi vẽ nét ngắn 75 → 18 | Giữ |
+| Pulse logger ngưỡng 0 (`-Djavafx.pulseLogger.threshold=0`) | JavaFX tự lỗi NullPointerException | Không dùng để đo |
 
 ## Thứ tự đề xuất
 

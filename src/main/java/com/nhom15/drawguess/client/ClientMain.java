@@ -22,6 +22,7 @@ public class ClientMain extends Application {
         StackPane content = new StackPane();
         content.setPadding(new javafx.geometry.Insets(24));
         root.getChildren().addAll(backdrop, content);
+        backdrop.followContent(content);
         authController = new AuthController(content, new TCPClient());
         stage.setTitle("Draw and Guess • Starry Studio");
         Scene scene = new Scene(root, 1100, 800);

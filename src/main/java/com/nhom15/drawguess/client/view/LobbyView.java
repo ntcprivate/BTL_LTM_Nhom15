@@ -223,9 +223,14 @@ public class LobbyView extends VBox {
             status.setText("Tất cả đã sẵn sàng. Chuẩn bị bắt đầu!");
         } else if (room.getPlayers().size() < 2) {
             status.setText("Cần ít nhất 2 người và tất cả sẵn sàng để bắt đầu.");
+        } else if (!ready) {
+            // Thẻ thống kê đã hiện số người sẵn sàng; dòng này chỉ hướng dẫn việc cần làm tiếp.
+            status.setText("Bấm Sẵn sàng khi bạn đã chuẩn bị xong. Trận bắt đầu khi tất cả cùng sẵn sàng."
+                    + (canKick ? " Bạn là chủ phòng nên có thể mời người chơi ra." : ""));
         } else {
-            long count = room.getPlayers().stream().filter(PlayerInfo::isReady).count();
-            status.setText("Sẵn sàng: " + count + "/" + room.getPlayers().size());
+            long waiting = room.getPlayers().size() - readyPlayers;
+            status.setText(waiting == 0 ? "Tất cả đã sẵn sàng!"
+                    : "Bạn đã sẵn sàng. Đang chờ " + waiting + " người nữa bấm Sẵn sàng...");
         }
         setBusy(false);
     }

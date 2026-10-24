@@ -119,6 +119,16 @@ mvn javafx:run
 
 ADMIN đăng nhập sẽ mở màn hình quản trị. USER đăng nhập sẽ vào trang chủ. Tại đây có thể vào danh sách phòng, mở lịch sử trận hoặc chọn “Hồ sơ & avatar”. Chọn một tranh, bấm **Lưu avatar**, rồi vào phòng để thấy avatar của mình và những người chơi khác.
 
+## Chạy thử không cần MySQL
+
+Server chạy thử lưu tài khoản, từ khóa và lịch sử trong bộ nhớ, không cần MySQL hay `config/db.properties`. Dữ liệu mất khi tắt server.
+
+```powershell
+mvn -q compile exec:java "-Dexec.mainClass=com.nhom15.drawguess.server.demo.DemoServerMain"
+```
+
+Mở thêm terminal và chạy `mvn javafx:run` cho mỗi người chơi. Tài khoản có sẵn: `demo1`–`demo4` (mật khẩu `123`) và `admin` (mật khẩu `admin`). Có 3 chủ đề mẫu, mỗi chủ đề 10 từ, đủ cho phòng 8 người. Chỉ chạy một server tại một thời điểm vì cả hai cùng dùng cổng 5555.
+
 ## Chơi trên hai máy trong LAN
 
 Máy A có thể chạy **MySQL + server + một client**. Máy B chỉ cần JDK/Maven và client. Hai máy kết nối cùng mạng; chỉ máy A chạy server.

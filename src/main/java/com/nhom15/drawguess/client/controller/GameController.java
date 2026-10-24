@@ -11,6 +11,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class GameController {
@@ -22,12 +23,12 @@ public class GameController {
     private boolean uploadRequested;
     private volatile boolean closed;
 
-    public GameController(StackPane root, int userId, DrawingPrompt prompt, Consumer<Message> send,
-                          Runnable back, Runnable leave, Runnable logout) {
+    public GameController(StackPane root, int userId, DrawingPrompt prompt, Map<Integer, String> avatars,
+                          Consumer<Message> send, Runnable back, Runnable leave, Runnable logout) {
         this.userId = userId;
         this.send = send;
         matchId = prompt.getMatchId();
-        view = new GameView(this::guess, back, leave, logout);
+        view = new GameView(userId, avatars, this::guess, back, leave, logout);
         view.showDrawing(prompt);
         UiTheme.show(root, view);
     }
