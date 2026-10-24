@@ -2,7 +2,6 @@ package com.nhom15.drawguess.client.view;
 
 import com.nhom15.drawguess.common.protocol.RoomInfo;
 import com.nhom15.drawguess.common.protocol.RoomStatus;
-import com.nhom15.drawguess.common.protocol.PlayerInfo;
 import com.nhom15.drawguess.common.protocol.UserInfo;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -67,6 +66,7 @@ public class RoomListView extends VBox {
                 statistic(availableRooms, "PHÒNG CÓ THỂ VÀO"),
                 statistic(activeRooms, "TRẬN ĐANG DIỄN RA"),
                 statistic(onlinePlayers, "NGƯỜI ĐANG ONLINE"));
+        onlinePlayers.setId("online-user-count");
 
         rooms.setPrefHeight(430);
         VBox.setVgrow(rooms, Priority.ALWAYS);
@@ -140,15 +140,14 @@ public class RoomListView extends VBox {
 
     public RoomInfo getSelectedRoom() { return rooms.getSelectionModel().getSelectedItem(); }
 
-    public void updateRooms(List<RoomInfo> data) {
+    public void updateRooms(List<RoomInfo> data, int onlineUserCount) {
         RoomInfo selected = getSelectedRoom();
         rooms.getItems().setAll(data);
         availableRooms.setText(String.valueOf(data.stream().filter(room -> room.getStatus() == RoomStatus.WAITING
                 || room.getStatus() == RoomStatus.READY_CHECK).count()));
         activeRooms.setText(String.valueOf(data.stream().filter(room -> room.getStatus() == RoomStatus.PLAYING
                 || room.getStatus() == RoomStatus.GAME_STARTING).count()));
-        onlinePlayers.setText(String.valueOf(data.stream().flatMap(room -> room.getPlayers().stream())
-                .filter(PlayerInfo::isOnline).count()));
+        onlinePlayers.setText(String.valueOf(onlineUserCount));
         if (selected != null) {
             data.stream().filter(r -> r.getRoomId() == selected.getRoomId()).findFirst()
                     .ifPresent(r -> rooms.getSelectionModel().select(r));

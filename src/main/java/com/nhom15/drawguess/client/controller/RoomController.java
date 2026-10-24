@@ -9,7 +9,6 @@ import com.nhom15.drawguess.client.view.AvatarPickerView;
 import com.nhom15.drawguess.common.protocol.*;
 import javafx.scene.layout.StackPane;
 
-import java.util.List;
 import java.util.function.Consumer;
 
 // Mọi phương thức của controller này được gọi trên JavaFX Application Thread.
@@ -161,8 +160,8 @@ public class RoomController {
         }
         switch (message.getType()) {
             case ROOM_LIST -> {
-                if (message.getData() instanceof List<?> data && data.stream().allMatch(RoomInfo.class::isInstance)) {
-                    roomList.updateRooms(data.stream().map(RoomInfo.class::cast).toList());
+                if (message.getData() instanceof RoomListData data) {
+                    roomList.updateRooms(data.getRooms(), data.getOnlineUsers());
                     roomList.setBusy(false);
                     roomList.showMessage("Chọn phòng để tham gia.");
                 }

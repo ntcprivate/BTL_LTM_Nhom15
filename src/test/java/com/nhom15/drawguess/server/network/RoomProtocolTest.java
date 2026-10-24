@@ -149,12 +149,38 @@ class RoomProtocolTest {
     }
 
     @Test
+    void onlineCountIncludesLoggedInUsersOutsideRoomsAndDropsAfterLogout() throws Exception {
+        try (TestServer server = new TestServer()) {
+            TCPClient first = server.client();
+            TCPClient second = server.client();
+            login(first, 1, "USER");
+            login(second, 2, "USER");
+
+            send(first, MessageType.GET_ROOMS, null);
+            RoomListData withTwoUsers = assertInstanceOf(RoomListData.class,
+                    receive(first, MessageType.ROOM_LIST).getData());
+            assertEquals(2, withTwoUsers.getOnlineUsers());
+            assertTrue(withTwoUsers.getRooms().stream().allMatch(room -> room.getPlayers().isEmpty()));
+
+            send(second, MessageType.LOGOUT, null);
+            assertEquals("LOGOUT", receive(second, MessageType.ACTION_SUCCESS).getData());
+            send(first, MessageType.GET_ROOMS, null);
+            RoomListData afterLogout = assertInstanceOf(RoomListData.class,
+                    receive(first, MessageType.ROOM_LIST).getData());
+            assertEquals(1, afterLogout.getOnlineUsers());
+        }
+    }
+
+    @Test
     void roomListInvalidJoinAndLeaveKeepAuthenticatedConnectionAlive() throws Exception {
         try (TestServer server = new TestServer()) {
             TCPClient client = server.client();
             login(client, 1, "USER");
             send(client, MessageType.GET_ROOMS, null);
-            assertEquals(100, assertInstanceOf(List.class, receive(client, MessageType.ROOM_LIST).getData()).size());
+            RoomListData roomList = assertInstanceOf(RoomListData.class,
+                    receive(client, MessageType.ROOM_LIST).getData());
+            assertEquals(100, roomList.getRooms().size());
+            assertEquals(1, roomList.getOnlineUsers());
             send(client, MessageType.JOIN_ROOM, "1");
             assertEquals("INVALID_REQUEST", receive(client, MessageType.JOIN_FAILED).getData());
             send(client, MessageType.JOIN_ROOM, 101);

@@ -2,6 +2,7 @@ package com.nhom15.drawguess.server.network;
 
 import com.nhom15.drawguess.common.protocol.Message;
 import com.nhom15.drawguess.common.protocol.MessageType;
+import com.nhom15.drawguess.common.protocol.RoomListData;
 import com.nhom15.drawguess.common.protocol.RegisterRequest;
 import com.nhom15.drawguess.common.protocol.LoginRequest;
 import com.nhom15.drawguess.common.protocol.UserInfo;
@@ -263,7 +264,8 @@ public class ClientHandler implements Runnable {
             return;
         }
         switch (message.getType()) {
-            case GET_ROOMS -> sendMessage(new Message(MessageType.ROOM_LIST, roomManager.getRooms()));
+            case GET_ROOMS -> sendMessage(new Message(MessageType.ROOM_LIST,
+                    new RoomListData(roomManager.getRooms(), sessionManager.onlineCount())));
             case JOIN_ROOM -> {
                 if (!(message.getData() instanceof Integer roomId)) {
                     sendMessage(new Message(MessageType.JOIN_FAILED, "INVALID_REQUEST"));

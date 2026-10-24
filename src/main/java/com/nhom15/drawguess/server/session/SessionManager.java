@@ -20,4 +20,8 @@ public class SessionManager {
         // Một kết nối chỉ được xóa phiên mà chính nó đang sở hữu.
         sessions.remove(userId, socket);
     }
+
+    public synchronized int onlineCount() {
+        return sessions.size();
+    }
 }
