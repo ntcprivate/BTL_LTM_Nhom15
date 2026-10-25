@@ -1072,7 +1072,8 @@
     -fx-border-insets: 30px;
     -fx-border-radius: 20px;
     -fx-border-width: 1px;
-    -fx-padding: 30px;
+    /* Viền lùi vào 30px đã đẩy nội dung vào trong thẻ, nên không cần thêm padding. */
+    -fx-padding: 0;
     -fx-pref-width: 524px;
     -fx-effect: dropshadow(gaussian, rgba(2, 10, 32, 0.6), 32, 0.24, 0, 10);
 }
@@ -1082,14 +1083,64 @@
     -fx-background-color: rgba(2, 10, 30, 0.45);
 }
 
-.themed-dialog > .dialog-header {
-    -fx-padding: 24px 26px 10px 24px;
+/* Dải trời đêm ở đầu thẻ: không còn thanh tiêu đề của hệ điều hành nên kéo dải này để di chuyển hộp thoại. */
+.themed-dialog .dialog-sky-layer {
     -fx-cursor: move;
 }
 
-/* Thanh đếm ngược thẳng hàng với chữ (bỏ qua cột huy hiệu 44px + khoảng cách 16px). */
+/* Bo góc trên khớp với góc trong của viền thẻ (20px trừ viền 1px). */
+.dialog-sky {
+    -fx-background-radius: 19px 19px 0 0;
+}
+
+.dialog-info .dialog-sky {
+    -fx-background-color:
+        linear-gradient(to bottom right, #0b2a63 0%, #1d4f91 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 42px 20px, radius 5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 112px 55px, radius 3.5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 166px 17px, radius 2.5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 291px 24px, radius 3px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 360px 58px, radius 4px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 420px 19px, radius 5.5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%);
+}
+
+.dialog-warning .dialog-sky {
+    -fx-background-color:
+        linear-gradient(to bottom right, #7c2d12 0%, #c2620a 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 42px 20px, radius 5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 112px 55px, radius 3.5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 166px 17px, radius 2.5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 291px 24px, radius 3px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 360px 58px, radius 4px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 420px 19px, radius 5.5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%);
+}
+
+.dialog-danger .dialog-sky {
+    -fx-background-color:
+        linear-gradient(to bottom right, #6b0f2a 0%, #be123c 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 42px 20px, radius 5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 112px 55px, radius 3.5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 166px 17px, radius 2.5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 291px 24px, radius 3px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 360px 58px, radius 4px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 420px 19px, radius 5.5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%);
+}
+
+/* Nét xoáy kiểu "Đêm đầy sao", mờ để không tranh chỗ với nội dung. */
+.dialog-swirl {
+    -fx-stroke: rgba(255, 255, 255, 0.22);
+    -fx-stroke-width: 2.5px;
+    -fx-stroke-line-cap: round;
+}
+
+.dialog-hero {
+    -fx-padding: 0 0 4px 0;
+}
+
+/* Đếm ngược / tiến trình căn giữa dưới nội dung. */
 .themed-dialog > .dialog-body {
-    -fx-padding: 6px 26px 4px 84px;
+    -fx-padding: 8px 44px 0 44px;
+    -fx-alignment: center;
 }
 
 .themed-dialog > .online-panel {
@@ -1097,11 +1148,16 @@
 }
 
 .themed-dialog > .button-bar > .container {
-    -fx-padding: 12px 24px 22px 24px;
+    -fx-padding: 16px 28px 26px 28px;
+    -fx-alignment: center;
 }
 
-.themed-dialog .button {
-    -fx-min-width: 104px;
+/* Nút cao 44px cho dễ bấm, rộng đều nhau. */
+.themed-dialog .button,
+.reconnect-card .button {
+    -fx-min-width: 132px;
+    -fx-min-height: 44px;
+    -fx-font-size: 14px;
 }
 
 /* Viền nút phụ đậm hơn (3.4:1 so với nền thẻ) để "Hủy / Ở lại" vẫn trông như một nút. */
@@ -1109,38 +1165,36 @@
     -fx-border-color: #a8802a;
 }
 
+/* Huy hiệu tròn đặc màu, viền kem trùng màu thân thẻ để trông như "khoét" vào dải trời, có quầng sáng nhẹ. */
 .dialog-badge {
-    -fx-min-width: 44px;
-    -fx-min-height: 44px;
-    -fx-max-width: 44px;
-    -fx-max-height: 44px;
     -fx-alignment: center;
     -fx-background-radius: 999px;
     -fx-border-radius: 999px;
-    -fx-border-width: 1px;
+    -fx-border-width: 4px;
+    -fx-border-color: #fff9e0;
 }
 
 .dialog-info .dialog-badge {
-    -fx-background-color: #173f84;
-    -fx-border-color: #eab308;
+    -fx-background-color: radial-gradient(center 35% 30%, radius 75%, #2563aa 0%, #173f84 100%);
     -fx-text-fill: #ffe08a;
+    -fx-effect: dropshadow(gaussian, rgba(250, 204, 21, 0.55), 16, 0.2, 0, 2);
 }
 
 .dialog-warning .dialog-badge {
-    -fx-background-color: #fff1c2;
-    -fx-border-color: #f59e0b;
-    -fx-text-fill: #a16207;
+    -fx-background-color: radial-gradient(center 35% 30%, radius 75%, #c2620a 0%, #b45309 100%);
+    -fx-text-fill: #fff7d1;
+    -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.5), 16, 0.2, 0, 2);
 }
 
 .dialog-danger .dialog-badge {
-    -fx-background-color: #ffe4e6;
-    -fx-border-color: #fda4af;
-    -fx-text-fill: #be123c;
+    -fx-background-color: radial-gradient(center 35% 30%, radius 75%, #e11d48 0%, #be123c 100%);
+    -fx-text-fill: #ffffff;
+    -fx-effect: dropshadow(gaussian, rgba(225, 29, 72, 0.45), 16, 0.2, 0, 2);
 }
 
 .dialog-title {
     -fx-font-family: "Segoe UI Semibold", "Segoe UI";
-    -fx-font-size: 18px;
+    -fx-font-size: 20px;
     -fx-font-weight: 800;
     -fx-text-fill: #102c5c;
 }
@@ -1205,7 +1259,7 @@
     -fx-background-radius: 20px;
     -fx-border-color: #d6a93d;
     -fx-border-radius: 20px;
-    -fx-padding: 24px 26px 22px 24px;
+    -fx-padding: 0 0 24px 0;
     -fx-effect: dropshadow(gaussian, rgba(2, 10, 32, 0.6), 32, 0.24, 0, 10);
 }
 
@@ -1254,4 +1308,106 @@
 .start-countdown-hint {
     -fx-text-fill: #dbe7ff;
     -fx-font-size: 13px;
+}
+
+/* Khung trò chuyện bên trái ô vẽ. */
+.chat-panel {
+    -fx-spacing: 10px;
+}
+
+.chat-list {
+    -fx-background-color: #fffdf5;
+    -fx-background-radius: 14px;
+    -fx-border-color: #ead9a6;
+    -fx-border-radius: 14px;
+    -fx-padding: 6px;
+}
+
+.chat-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 3px 2px;
+}
+
+.chat-bubble {
+    -fx-background-radius: 14px;
+    -fx-padding: 6px 11px 7px 11px;
+}
+
+.chat-theirs {
+    -fx-background-color: #eef4ff;
+    -fx-border-color: #c9d9f5;
+    -fx-background-radius: 4px 14px 14px 14px;
+    -fx-border-radius: 4px 14px 14px 14px;
+}
+
+.chat-mine {
+    -fx-background-color: #ffe9a8;
+    -fx-border-color: #e8c25a;
+    -fx-background-radius: 14px 4px 14px 14px;
+    -fx-border-radius: 14px 4px 14px 14px;
+}
+
+.chat-name {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #173f84;
+}
+
+.chat-mine .chat-name {
+    -fx-text-fill: #7a4a00;
+}
+
+.chat-text {
+    -fx-font-size: 13px;
+    -fx-text-fill: #1f2a44;
+}
+
+.chat-notice {
+    -fx-background-color: #fff1f2;
+    -fx-text-fill: #be123c;
+    -fx-background-radius: 10px;
+    -fx-padding: 6px 10px;
+    -fx-font-size: 12px;
+}
+
+.chat-send {
+    -fx-min-width: 44px;
+    -fx-padding: 8px 12px;
+}
+
+/* Hai thẻ "Bảng điểm / Trò chuyện" khi cửa sổ hẹp. */
+.side-tabs {
+    -fx-background-color: #f3e3b0;
+    -fx-background-radius: 999px;
+    -fx-padding: 3px;
+}
+
+.side-tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #173f73;
+    -fx-font-weight: 700;
+    -fx-padding: 6px 10px;
+}
+
+.side-tab:selected {
+    -fx-background-color: #173f84;
+    -fx-text-fill: #fff7d1;
+}
+
+.side-tab:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+    -fx-border-radius: 999px;
+}
+
+/* "2/3 người muốn chơi lại" trên màn kết quả. */
+.rematch-status {
+    -fx-background-color: #173f84;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #ffe08a;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-padding: 6px 14px;
+    -fx-graphic-text-gap: 8px;
 }

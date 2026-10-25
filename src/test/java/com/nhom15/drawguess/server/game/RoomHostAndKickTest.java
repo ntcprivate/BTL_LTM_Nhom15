@@ -36,7 +36,7 @@ class RoomHostAndKickTest {
     }
 
     @Test
-    void onlyHostCanKickAndKickedPlayerCannotRejoinUntilRoomIsEmpty() {
+    void onlyHostCanKickAndKickedPlayerCanComeBackRightAway() {
         join(1, 1); join(2, 1); join(3, 1);
         kick(2, 3);
         assertEquals("NOT_HOST", last(2).getData());
@@ -53,9 +53,12 @@ class RoomHostAndKickTest {
         assertEquals("HOST_KICK", last(3).getData());
         assertEquals(List.of(1, 2), players(1));
 
+        // Người vừa bị mời ra tự vào lại được ngay.
         join(3, 1);
-        assertEquals(MessageType.JOIN_FAILED, last(3).getType());
-        assertEquals("KICKED_FROM_ROOM", last(3).getData());
+        assertEquals(MessageType.JOIN_SUCCESS, messages(3).stream().filter(m -> m.getType() != MessageType.ROOM_INFO)
+                .reduce((a, b) -> b).orElseThrow().getType());
+        assertEquals(List.of(1, 2, 3), players(1));
+        kick(1, 3);
         join(3, 2);
         assertEquals(List.of(3), players(2));
 

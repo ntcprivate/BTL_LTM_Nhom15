@@ -6,6 +6,7 @@ import com.nhom15.drawguess.server.dao.HistoryDAO;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.text.Normalizer;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +32,9 @@ public class GameManager implements AutoCloseable {
     public static final int GUESS_SECONDS = 30;
     public static final int REVEAL_SECONDS = 3;
     public static final int HINT_SECONDS = 15;
+    // Điểm theo tốc độ: đúng trong 10 giây đầu được 3, 10 giây tiếp được 2, sau đó 1.
+    public static final int SPEED_STEP_SECONDS = 10;
+    public static final int MAX_GUESS_POINTS = 3;
     private final HistoryDAO historyDAO;
     private final WordDAO wordDAO;
     private final DrawingStore drawings;
@@ -164,20 +168,24 @@ public class GameManager implements AutoCloseable {
                 guessReply(reply, request, false, player, false, "INVALID_ANSWER"); return;
             }
             player.attempts++;
+            int earned = 0;
             boolean correct = normalize(answer).equals(normalize(drawer.word));
             if (correct) {
                 player.solved = true;
                 player.correctCount++;
                 player.totalGuessNanos += receivedAt - match.roundStarted;
-                player.score++;
+                earned = speedPoints(receivedAt - match.roundStarted);
+                player.score += earned;
                 if (match.firstCorrect == null) {
                     player.score++;
+                    earned++;
                     match.firstCorrect = player;
                     match.firstReceivedAt = receivedAt;
                 } else if (receivedAt < match.firstReceivedAt) {
                     // Thread nhận sớm hơn nhưng lấy khóa muộn hơn vẫn được điểm đầu tiên.
                     match.firstCorrect.score--;
                     player.score++;
+                    earned++;
                     match.firstCorrect = player;
                     match.firstReceivedAt = receivedAt;
                 }
@@ -191,11 +199,44 @@ public class GameManager implements AutoCloseable {
                     correct, match.roundWallStarted + TimeUnit.NANOSECONDS.toMillis(receivedAt - match.roundStarted),
                     (receivedAt - match.roundStarted) / 1_000_000_000.0));
             persist(match);
-            guessReply(reply, request, correct, player, player.solved || player.attempts >= 3,
-                    correct ? "CORRECT" : "WRONG_ANSWER");
+            reply.accept(new Message(MessageType.GUESS_RESULT, new GuessResult(request.getMatchId(),
+                    request.getRoundIndex(), correct, Math.max(0, 3 - player.attempts),
+                    player.solved || player.attempts >= 3, correct ? "CORRECT" : "WRONG_ANSWER", earned)));
             if (correct) { broadcastScores(match, false); }
             if (everyoneDone(match)) { endRound(match); }
         }
+    }
+
+    // Thời gian tính từ lúc bắt đầu vòng; mỗi 10 giây sớm hơn được thêm 1 điểm, thấp nhất 1 điểm.
+    static int speedPoints(long elapsedNanos) {
+        long steps = elapsedNanos / TimeUnit.SECONDS.toNanos(SPEED_STEP_SECONDS);
+        return (int) Math.max(1, MAX_GUESS_POINTS - steps);
+    }
+
+    // Tin nhắn chat có để lộ từ khóa chưa công bố của trận đang chơi không (không phân biệt hoa thường, dấu).
+    public boolean revealsWord(int roomId, String text) {
+        Match match = matches.get(roomId);
+        if (match == null) { return false; }
+        String message = " " + chatForm(text) + " ";
+        String joined = message.replace(" ", "");
+        synchronized (match.lock) {
+            for (int index = 0; index < match.order.size(); index++) {
+                boolean revealed = index < match.round || (index == match.round && match.phase == GamePhase.ROUND_END);
+                if (revealed) { continue; }
+                String word = chatForm(match.order.get(index).word);
+                // Khớp nguyên từ ("cá" không chặn "các bạn"); từ nhiều tiếng thì chặn cả kiểu viết liền.
+                if (message.contains(" " + word + " ") || (word.contains(" ") && joined.contains(word.replace(" ", "")))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static String chatForm(String text) {
+        String plain = Normalizer.normalize(text.toLowerCase(Locale.ROOT).replace('đ', 'd'), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+        return plain.replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
     }
 
     // Báo cáo tranh đang đoán (cả lúc đang công bố đáp án). Mỗi người đoán chỉ báo cáo một lần mỗi vòng.

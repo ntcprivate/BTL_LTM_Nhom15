@@ -207,6 +207,7 @@ public class RoomController {
             Map<Integer, String> avatars = currentRoom.getPlayers().stream()
                     .collect(Collectors.toMap(PlayerInfo::getUserId, PlayerInfo::getAvatarKey, (a, b) -> a));
             game = new GameController(root, user.getId(), prompt, avatars, send, this::returnToLobby, this::leave, logout);
+            game.setOnPlayAgain(this::playAgain);
             if (resumingMatch) {
                 resumingMatch = false;
                 game.showMessage("Đã vào lại trận. Bạn chơi tiếp từ chỗ đang dở.");
@@ -274,6 +275,7 @@ public class RoomController {
                         && room.getRoomId() == currentRoom.getRoomId()) {
                     currentRoom = room;
                     lobby.update(room);
+                    if (game != null) { game.showRematch(room); }
                 }
             }
             case KICKED -> {
@@ -305,12 +307,10 @@ public class RoomController {
                     case "NOT_IN_ROOM" -> "Bạn chưa tham gia phòng.";
                     case "NOT_LOGGED_IN" -> "Hãy đăng nhập trước khi tham gia phòng.";
                     case "FORBIDDEN" -> "Tài khoản không có quyền tham gia phòng.";
-                    case "KICKED_FROM_ROOM" -> "Bạn đã bị mời ra khỏi phòng này. Hãy chọn phòng khác.";
                     case "NOT_HOST" -> "Chỉ chủ phòng mới được mời người chơi ra.";
                     case "INVALID_TARGET" -> "Người chơi này không còn trong phòng.";
                     case "TARGET_OFFLINE" -> "Người này không còn online.";
                     case "TARGET_BUSY" -> "Người này đang ở trong một phòng khác.";
-                    case "TARGET_KICKED" -> "Người này đã bị mời ra khỏi phòng nên không mời lại được.";
                     case "INVITE_COOLDOWN" -> "Bạn vừa mời người này. Hãy chờ vài giây rồi mời lại.";
                     case "INVALID_INVITE" -> "Không thể mời người chơi này.";
                     default -> "Yêu cầu không hợp lệ.";
@@ -321,6 +321,17 @@ public class RoomController {
                 else { lobby.showMessage(reason); }
             }
             default -> { }
+        }
+    }
+
+    // "Chơi lại" ở màn kết quả: về phòng chờ và tự báo sẵn sàng; cả phòng cùng sẵn sàng thì đếm ngược vào ván mới.
+    private void playAgain() {
+        returnToLobby();
+        if (currentRoom == null) { return; }
+        boolean ready = currentRoom.getPlayers().stream().anyMatch(p -> p.getUserId() == user.getId() && p.isReady());
+        if (!ready) {
+            lobby.setBusy(true);
+            send.accept(new Message(MessageType.READY));
         }
     }
 

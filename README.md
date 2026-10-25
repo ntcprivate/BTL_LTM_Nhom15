@@ -8,7 +8,7 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 - Trang chủ sau đăng nhập với lối tắt vào phòng, lịch sử và hồ sơ.
 - Chọn avatar từ 9 tranh Van Gogh; avatar được lưu theo tài khoản và hiển thị trong phòng chờ.
 - Vào phòng, chọn chủ đề, sẵn sàng, vẽ và đoán từ, tính điểm và xếp hạng.
-- Người vào phòng đầu tiên là chủ phòng và có thể mời người khác ra; người bị mời ra không vào lại được phòng đó cho tới khi phòng trống. Người chưa sẵn sàng không bị tự động đưa ra; chỉ chủ phòng mới mời người khác ra được.
+- Người vào phòng đầu tiên là chủ phòng và có thể mời người khác ra; người bị mời ra vẫn tự vào lại hoặc được mời lại vào phòng. Người chưa sẵn sàng không bị tự động đưa ra; chỉ chủ phòng mới mời người khác ra được.
 - Khi mọi người trong phòng đã sẵn sàng, phòng chờ **đếm ngược 5 giây** rồi mới vào trận. Trong lúc đếm, ai bấm **Tôi chưa sẵn sàng!** thì trận không bắt đầu và cả phòng thấy tên người đó; khi mọi người sẵn sàng lại thì đếm lại từ đầu. Có người rời phòng giữa lúc đếm thì những người còn lại được đếm lại.
 - Trong phòng chờ, nút **Mời người chơi** hiện danh sách người đang online (đang rảnh / đang ở phòng nào / đang chơi). Ai trong phòng cũng mời được người đang rảnh; người được mời thấy hộp thoại **Vào phòng / Từ chối** (tự hết hạn sau 30 giây). Mỗi người chỉ mời lại cùng một người sau 10 giây.
 - Ở màn hình chọn phòng, nút **Xem danh sách** trong thẻ "Người đang online" cho xem ai đang online và đang ở đâu (chỉ xem, muốn mời thì vào phòng trước).
@@ -16,6 +16,9 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 - Khi vẽ có nút **Hoàn tác** (Ctrl+Z) để bỏ nét vẽ gần nhất hoặc khôi phục tranh vừa bị xóa (tối đa 20 bước).
 - Khi đoán, người chơi thấy gợi ý số chữ cái dạng `_ _ _   _ _ _`; sau 15 giây server mở thêm một chữ cái ngẫu nhiên.
 - Trong phiên đoán có nút **Báo cáo tranh** (khi tranh không đúng từ khóa, ví dụ viết chữ lên tranh). Khi **quá nửa** số người đoán đang online cùng báo cáo, người vẽ mất số điểm đã nhận ở vòng đó và không được cộng thêm; người đoán vẫn giữ điểm. Có thể báo cáo cả trong 3 giây công bố đáp án.
+- **Điểm theo tốc độ**: đoán đúng trong 10 giây đầu được 3 điểm, 10 giây tiếp theo 2 điểm, sau đó 1 điểm; người đoán đúng đầu tiên được thêm 1 điểm; người vẽ được 1 điểm cho mỗi người đoán đúng.
+- **Trò chuyện** trong trận: khung chat bên trái ô vẽ (cửa sổ hẹp thì nằm trong thẻ "Trò chuyện" cạnh bảng điểm). Server chặn tin nhắn để lộ từ khóa chưa công bố (kể cả viết không dấu hoặc viết liền) và chặn gửi quá dồn dập.
+- **Chơi lại**: màn kết quả có nút **Chơi lại** (về phòng chờ và tự báo sẵn sàng) và dòng "2/3 người muốn chơi lại • Đang chờ: …". Cả phòng cùng bấm thì đếm ngược 5 giây rồi vào ván mới.
 - Lịch sử trận: thời gian, người tham gia, điểm, thứ hạng, từng vòng và các lượt đoán.
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.
 - ADMIN thêm, sửa, xóa chủ đề và từ khóa.

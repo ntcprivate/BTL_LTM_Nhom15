@@ -191,7 +191,7 @@ public class ClientHandler implements Runnable {
                 handleDataMessage(message); return;
             }
             case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, KICK_PLAYER, DRAW_UPLOAD, GUESS,
-                 REPORT_DRAWING, GET_ONLINE_USERS, INVITE_PLAYER, DECLINE_INVITE -> {
+                 REPORT_DRAWING, GET_ONLINE_USERS, INVITE_PLAYER, DECLINE_INVITE, CHAT_SEND -> {
                 handleRoomMessage(message, receivedAt);
                 return;
             }
@@ -313,6 +313,7 @@ public class ClientHandler implements Runnable {
             }
             case DRAW_UPLOAD, GUESS, REPORT_DRAWING ->
                     roomManager.handleGameMessage(currentUser.getId(), message, receivedAt, outbox);
+            case CHAT_SEND -> roomManager.chat(currentUser, message.getData(), outbox);
             case GET_ONLINE_USERS -> {
                 // Người đang rảnh lên đầu để dễ mời; không liệt kê chính mình và tài khoản quản trị.
                 List<OnlineUser> users = sessionManager.onlineUsers().stream()

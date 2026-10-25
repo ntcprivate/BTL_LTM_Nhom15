@@ -87,7 +87,7 @@ class RoomProtocolTest {
                 GameResult result = assertInstanceOf(GameResult.class, receive(client, MessageType.GAME_RESULT).getData());
                 assertEquals(matchId, result.getMatchId());
                 assertEquals(4, result.getPlayers().size());
-                assertEquals(List.of(9, 7, 6, 6), result.getPlayers().stream().map(ScoreEntry::getScore).toList());
+                assertEquals(List.of(15, 13, 12, 12), result.getPlayers().stream().map(ScoreEntry::getScore).toList());
             }
             RoomInfo lobby = server.rooms.getRooms().getFirst();
             assertEquals(RoomStatus.READY_CHECK, lobby.getStatus());

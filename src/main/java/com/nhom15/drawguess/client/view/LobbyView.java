@@ -200,7 +200,7 @@ public class LobbyView extends VBox {
     private void confirmKick(PlayerInfo player) {
         if (ThemedDialog.confirm(this, ThemedDialog.Tone.DANGER, Icons.Glyph.USER_MINUS,
                 "Mời " + player.getUsername() + " ra khỏi phòng?",
-                "Người này sẽ không vào lại được phòng cho tới khi phòng trống.", "Mời ra", "Hủy")) {
+                "Người này sẽ quay về danh sách phòng. Họ vẫn có thể tự vào lại hoặc được mời lại.", "Mời ra", "Hủy")) {
             kick.accept(player.getUserId());
         }
     }

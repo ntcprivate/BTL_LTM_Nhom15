@@ -58,7 +58,11 @@ class RoomInviteTest {
         join(3, 1);
         manager.kick(1, 3, messages(1)::add);
         invite(1, 3);
-        assertEquals("TARGET_KICKED", lastReply(1));
+        assertEquals("INVITE_PLAYER", lastReply(1), "Người vừa bị mời ra vẫn được mời lại");
+        manager.join(user(3), ((Invitation) messages(3).getLast().getData()).getRoomId(), messages(3)::add);
+        assertEquals(MessageType.JOIN_SUCCESS, messages(3).stream().filter(m -> m.getType() == MessageType.JOIN_SUCCESS
+                || m.getType() == MessageType.JOIN_FAILED).reduce((a, b) -> b).orElseThrow().getType());
+        manager.leave(3, messages(3)::add);
 
         join(4, 2);
         invite(1, 4);

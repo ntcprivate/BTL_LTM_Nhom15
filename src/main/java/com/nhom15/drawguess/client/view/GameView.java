@@ -60,6 +60,26 @@ public class GameView extends BorderPane {
     private final Button guess = new Button("Đoán");
     private final HBox guessRow = new HBox(8, answer, guess);
     private final Button back = new Button("Về phòng chờ");
+    private final Button playAgain = Icons.attach(new Button("Chơi lại"), Icons.Glyph.REPLAY, 16);
+    private final Label rematch = Icons.attach(new Label(), Icons.Glyph.REPLAY, 15);
+    private Runnable onPlayAgain = () -> {};
+    // Khung chat: cửa sổ đủ rộng thì là cột bên trái ô vẽ (cân với cột bảng điểm bên phải);
+    // cửa sổ hẹp thì gộp vào cột phải, chuyển qua lại bằng hai thẻ "Bảng điểm" / "Trò chuyện".
+    private static final double SIDE_WIDTH = 290;
+    private static final double COLUMN_GAP = 20;
+    static final double WIDE_LAYOUT_WIDTH = 2 * SIDE_WIDTH + 500 + 2 * COLUMN_GAP + 20;
+    private final ChatPanel chat;
+    private final VBox chatColumn = new VBox(12);
+    private final ArtworkCard chatPainting;
+    private final HBox center = new HBox(COLUMN_GAP);
+    private VBox canvasColumn;
+    private VBox right;
+    private final Label scoreTitle = new Label("Bảng điểm");
+    private final ToggleButton scoreTab = new ToggleButton("Bảng điểm");
+    private final ToggleButton chatTab = new ToggleButton("Trò chuyện");
+    private final HBox sideTabs = new HBox(6, scoreTab, chatTab);
+    private final StackPane sideSlot = new StackPane();
+    private Boolean wideLayout;
     private final Button leave = new Button("Rời phòng");
     private final Button logout = new Button("Đăng xuất");
     private final ListView<ScoreEntry> scores = new ListView<>();
@@ -101,10 +121,18 @@ public class GameView extends BorderPane {
         logout.setOnAction(event -> confirmLeave("Đăng xuất", Icons.Glyph.POWER, signOut));
         back.setVisible(false);
         back.setManaged(false);
-        back.getStyleClass().add("primary-button");
+        back.getStyleClass().add("ghost-button");
+        playAgain.setOnAction(event -> {
+            playAgain.setDisable(true);
+            onPlayAgain.run();
+        });
+        playAgain.setVisible(false);
+        playAgain.setManaged(false);
+        playAgain.getStyleClass().add("primary-button");
+        playAgain.setTooltip(new Tooltip("Về phòng chờ và báo sẵn sàng cho ván mới"));
         leave.getStyleClass().add("ghost-button");
         logout.getStyleClass().add("danger-button");
-        HBox navigation = new HBox(8, back, leave, logout);
+        HBox navigation = new HBox(8, playAgain, back, leave, logout);
         navigation.setAlignment(Pos.CENTER_RIGHT);
         navigation.getChildren().forEach(node -> ((Region) node).setMinWidth(Region.USE_PREF_SIZE));
 
@@ -203,16 +231,44 @@ public class GameView extends BorderPane {
         status.setWrapText(true);
         status.setMinHeight(Region.USE_PREF_SIZE);
         UiTheme.status(status, "info");
-        Label scoreTitle = new Label("Bảng điểm");
         scoreTitle.getStyleClass().add("section-title");
         ArtworkCard painting = new ArtworkCard(
-                "/images/Wheatfield-with-Crows-1890.jpg", "Wheatfield with Crows • 1890", 270, 86);
-        VBox right = new VBox(12, painting, scoreTitle, scores, guessRow, status);
+                "/images/Wheatfield-with-Crows-1890.jpg", "Wheatfield with Crows • 1890", SIDE_WIDTH - 40, 86);
+        ToggleGroup tabs = new ToggleGroup();
+        for (ToggleButton tab : List.of(scoreTab, chatTab)) {
+            tab.setToggleGroup(tabs);
+            tab.getStyleClass().add("side-tab");
+            tab.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(tab, Priority.ALWAYS);
+        }
+        scoreTab.setSelected(true);
+        // Luôn có một thẻ được chọn; bấm lại thẻ đang chọn không bỏ chọn nó.
+        tabs.selectedToggleProperty().addListener((observable, before, selected) -> {
+            if (selected == null) { before.setSelected(true); } else { showSideTab(); }
+        });
+        sideTabs.getStyleClass().add("side-tabs");
+        StackPane sideHeader = new StackPane(scoreTitle, sideTabs);
+        StackPane.setAlignment(scoreTitle, Pos.CENTER_LEFT);
+        VBox.setVgrow(sideSlot, Priority.ALWAYS);
+        right = new VBox(12, painting, sideHeader, sideSlot, guessRow, status);
         right.getStyleClass().add("sidebar-card");
-        right.setPrefWidth(310);
-        HBox center = new HBox(24, left, right);
+        right.setPrefWidth(SIDE_WIDTH);
+        right.setMinWidth(SIDE_WIDTH - 30);
+
+        chat = new ChatPanel(userId);
+        chat.unreadProperty().addListener((observable, before, count) -> chatTab.setText(
+                count.intValue() == 0 ? "Trò chuyện" : "Trò chuyện (" + count + ")"));
+        chatPainting = new ArtworkCard("/images/The-Starry-Night-1889.jpg", "The Starry Night • 1889", SIDE_WIDTH - 40, 86);
+        VBox.setVgrow(chat, Priority.ALWAYS);
+        chatColumn.getStyleClass().add("sidebar-card");
+        chatColumn.setPrefWidth(SIDE_WIDTH);
+        chatColumn.setMinWidth(SIDE_WIDTH - 30);
+
+        canvasColumn = left;
         center.setAlignment(Pos.TOP_CENTER);
         setCenter(center);
+        applyLayout(true);
+        widthProperty().addListener((observable, before, now) -> applyLayout(now.doubleValue() >= WIDE_LAYOUT_WIDTH));
 
         clear.setOnAction(event -> {
             if (!drawing) { return; }
@@ -240,6 +296,71 @@ public class GameView extends BorderPane {
             paintSegment(currentStroke, last[0], last[1], event.getX(), event.getY());
         });
         canvas.setOnMouseReleased(event -> currentStroke = null);
+    }
+
+    // Cửa sổ rộng: [chat | ô vẽ | bảng điểm]. Cửa sổ hẹp: [ô vẽ | bảng điểm/chat theo thẻ đang chọn].
+    private void applyLayout(boolean wide) {
+        if (Boolean.valueOf(wide).equals(wideLayout)) { return; }
+        wideLayout = wide;
+        if (wide) {
+            sideSlot.getChildren().setAll(scores);
+            chatColumn.getChildren().setAll(chatPainting, chat);
+            center.getChildren().setAll(chatColumn, canvasColumn, right);
+        } else {
+            chatColumn.getChildren().clear();
+            sideSlot.getChildren().setAll(scores, chat);
+            center.getChildren().setAll(canvasColumn, right);
+        }
+        chat.setTitleVisible(wide);
+        scoreTitle.setVisible(wide);
+        sideTabs.setVisible(!wide);
+        sideTabs.setManaged(!wide);
+        showSideTab();
+    }
+
+    private void showSideTab() {
+        boolean chatOpen = !wideLayout && chatTab.isSelected();
+        scores.setVisible(wideLayout || !chatOpen);
+        chat.setVisible(wideLayout || chatOpen);
+        chat.setShown(wideLayout || chatOpen);
+    }
+
+    public boolean isWideLayout() {
+        return Boolean.TRUE.equals(wideLayout);
+    }
+
+    public void setOnChat(java.util.function.Consumer<String> send) {
+        chat.setOnSend(send);
+    }
+
+    public void addChat(ChatMessage message) {
+        chat.add(message);
+    }
+
+    public void showChatNotice(String text) {
+        chat.showNotice(text);
+    }
+
+    public ChatPanel getChat() {
+        return chat;
+    }
+
+    public void setOnPlayAgain(Runnable action) {
+        onPlayAgain = action;
+    }
+
+    // Sau trận: bao nhiêu người đã bấm "Chơi lại" (đã sẵn sàng trong phòng) và còn chờ ai.
+    public void showRematch(RoomInfo room) {
+        if (!finished || room.getStatus() == RoomStatus.PLAYING || room.getStatus() == RoomStatus.FINISHED) { return; }
+        List<PlayerInfo> players = room.getPlayers();
+        long ready = players.stream().filter(PlayerInfo::isReady).count();
+        String waiting = players.stream().filter(player -> !player.isReady())
+                .map(player -> player.getUserId() == userId ? "bạn" : player.getUsername())
+                .reduce((a, b) -> a + ", " + b).orElse("");
+        rematch.setText(players.size() < 2 ? "Cần ít nhất 2 người để chơi lại. Hãy mời thêm bạn từ phòng chờ."
+                : ready + "/" + players.size() + " người muốn chơi lại" + (waiting.isEmpty() ? "" : " • Đang chờ: " + waiting));
+        rematch.setVisible(true);
+        rematch.setManaged(true);
     }
 
     private void confirmLeave(String action, Icons.Glyph glyph, Runnable confirmed) {
@@ -434,7 +555,7 @@ public class GameView extends BorderPane {
         answer.setDisable(result.isLocked());
         guess.setDisable(result.isLocked());
         String message = switch (result.getReason()) {
-            case "CORRECT" -> "Đúng rồi!";
+            case "CORRECT" -> result.getPoints() > 0 ? "Đúng rồi! +" + result.getPoints() + " điểm" : "Đúng rồi!";
             case "WRONG_ANSWER" -> "Chưa đúng. Còn " + result.getAttemptsLeft() + " lần đoán.";
             case "INVALID_ANSWER" -> "Đáp án phải có từ 1 đến 100 ký tự.";
             case "OWN_DRAWING" -> "Bạn không được đoán tranh của mình.";
@@ -499,7 +620,7 @@ public class GameView extends BorderPane {
         updateScores(result.getPlayers());
         timer.getStyleClass().remove("timer-urgent");
         timer.setText("Trận đấu kết thúc");
-        status.setText("Kết quả đã được xếp hạng. Bạn có thể trở về phòng chờ để chơi tiếp.");
+        status.setText("Kết quả đã được xếp hạng. Bấm Chơi lại để vào ván mới cùng cả phòng.");
         UiTheme.status(status, "success");
         renderPodium(result.getPlayers());
         canvas.setVisible(false);
@@ -510,6 +631,9 @@ public class GameView extends BorderPane {
         reportBar.setManaged(false);
         back.setVisible(true);
         back.setManaged(true);
+        playAgain.setDisable(false);
+        playAgain.setVisible(true);
+        playAgain.setManaged(true);
     }
 
     // Bục 1-2-3 cho ba người đứng đầu, những người còn lại liệt kê bên dưới.
@@ -536,7 +660,11 @@ public class GameView extends BorderPane {
             row.getStyleClass().add("result-other");
             others.getChildren().add(row);
         }
-        resultPanel.getChildren().setAll(title, winner, podium, others);
+        rematch.getStyleClass().add("rematch-status");
+        rematch.setWrapText(true);
+        rematch.setVisible(false);
+        rematch.setManaged(false);
+        resultPanel.getChildren().setAll(title, winner, rematch, podium, others);
     }
 
     private VBox podiumColumn(ScoreEntry player, int place) {
@@ -570,6 +698,7 @@ public class GameView extends BorderPane {
         leave.setDisable(true);
         logout.setDisable(true);
         back.setDisable(true);
+        playAgain.setDisable(true);
         status.setText("Đang rời trận đấu...");
         UiTheme.status(status, "info");
     }

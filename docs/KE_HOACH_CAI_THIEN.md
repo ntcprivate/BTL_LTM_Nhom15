@@ -44,11 +44,11 @@ Mức độ: 🔴 nghiêm trọng · 🟠 nên sửa · 🟡 nhỏ / trau chuố
 - [x] 🔴 **A3 — Chống viết chữ lên tranh**: người vẽ được +1 cho mỗi người đoán đúng, nên viết chữ là có lợi. Ghi luật trên màn hình vẽ, giới hạn điểm người vẽ khi *tất cả* đều đoán đúng, hoặc thêm nút báo cáo. — chưa commit — đã làm: nút **Báo cáo tranh** trong phiên đoán (cả lúc công bố đáp án); quá nửa người đoán đang online báo cáo thì người vẽ mất điểm đã nhận ở vòng đó và không được cộng thêm, người đoán giữ điểm. Báo cáo chưa được lưu vào lịch sử trận (chỉ điểm cuối cùng được lưu).
 - [ ] 🔴 **A4 — Bỏ qua vòng có tranh trắng** (không vẽ, mất kết nối, gửi lỗi) thay vì bắt cả phòng chờ 30 giây.
 - [ ] 🔴 **A5 — Kết thúc trận khi còn dưới 2 người online** (`GameManager.disconnect`).
-- [ ] 🟠 **A6 — Điểm theo tốc độ**: ví dụ đúng trong 10 giây đầu +3, 10 giây tiếp +2, sau đó +1.
+- [x] 🟠 **A6 — Điểm theo tốc độ**: ví dụ đúng trong 10 giây đầu +3, 10 giây tiếp +2, sau đó +1. — chưa commit — đã làm đúng như vậy; vẫn giữ +1 cho người đoán đúng đầu tiên và +1 cho người vẽ mỗi người đoán đúng; client hiện "Đúng rồi! +N điểm".
 - [ ] 🟠 **A7 — Thông báo "X đã đoán đúng!"** cho cả phòng (không lộ đáp án).
 - [ ] 🟠 **A9 — Nút "Nộp sớm"**: server nhận tranh trong pha DRAWING; ai cũng nộp thì chuyển sang đoán ngay.
-- [ ] 🟠 **A10 — Đếm ngược 3–5 giây trước khi vào trận**, cho phép hủy sẵn sàng trong lúc đếm.
-- [x] 🟠 **A14 — Mời người đang online vào phòng** — chưa commit — đã làm: nút "Mời người chơi" ở phòng chờ mở danh sách người online kèm trạng thái; ai trong phòng cũng mời được người đang rảnh; người được mời có hộp thoại Vào phòng / Từ chối (hết hạn sau 30 giây) và người mời được báo khi bị từ chối. Server chặn mời lại cùng một người trong 10 giây, không mời khi phòng đang chơi / đủ người hoặc người đó đã bị chủ phòng mời ra.
+- [x] 🟠 **A10 — Đếm ngược 3–5 giây trước khi vào trận**, cho phép hủy sẵn sàng trong lúc đếm. — chưa commit — đã làm: đếm 5 giây, nút "Tôi chưa sẵn sàng!"; thêm nút "Chơi lại" ở màn kết quả và khung chat trong trận.
+- [x] 🟠 **A14 — Mời người đang online vào phòng** — chưa commit — đã làm: nút "Mời người chơi" ở phòng chờ mở danh sách người online kèm trạng thái; ai trong phòng cũng mời được người đang rảnh; người được mời có hộp thoại Vào phòng / Từ chối (hết hạn sau 30 giây) và người mời được báo khi bị từ chối. Server chặn mời lại cùng một người trong 10 giây, không mời khi phòng đang chơi / đủ người. Người bị chủ phòng mời ra vẫn được mời lại hoặc tự vào lại.
 - [ ] 🟡 **A13 — Dùng cột `difficulty`** (EASY/MEDIUM/HARD): từ khó nhiều điểm hơn hoặc chia đều độ khó.
 
 > Ghi chú: mọi người vẽ từ khác nhau trong cùng chủ đề, nên ai cũng loại trừ được từ của chính mình. Mất kết nối giữa trận thì không vào lại được. Hai điểm này chấp nhận được, chỉ cần ghi vào luật.

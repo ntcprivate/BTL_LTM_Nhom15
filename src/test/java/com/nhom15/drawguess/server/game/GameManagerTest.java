@@ -177,14 +177,14 @@ class GameManagerTest {
             assertEquals(2, f.guessResult(2).getAttemptsLeft());
             f.guess(2, "  CON MÈO  ", 2);
             assertTrue(f.guessResult(2).isCorrect());
-            assertEquals(2, f.score(2));
+            assertEquals(4, f.score(2));
             assertEquals(1, f.score(1));
             f.guess(3, "con mèo", 3);
-            assertEquals(1, f.score(3));
+            assertEquals(3, f.score(3));
             assertEquals(2, f.score(1));
             f.guess(2, "con mèo", 4);
             assertEquals("GUESS_LOCKED", f.guessResult(2).getReason());
-            assertEquals(2, f.score(2));
+            assertEquals(4, f.score(2));
         }
     }
 
@@ -222,8 +222,8 @@ class GameManagerTest {
             f.startGuessing();
             f.guess(2, "con mèo", 3);
             f.guess(3, "con mèo", 1);
-            assertEquals(1, f.score(2));
-            assertEquals(2, f.score(3));
+            assertEquals(3, f.score(2));
+            assertEquals(4, f.score(3));
             assertEquals(2, f.score(1));
         }
     }
@@ -236,7 +236,7 @@ class GameManagerTest {
             int count = f.messages.get(1).size();
             f.guess(2, "con mèo", 1);
             assertEquals(0, f.score(1));
-            assertEquals(2, f.score(2));
+            assertEquals(4, f.score(2), "Đúng trong 10 giây đầu: 3 điểm + 1 thưởng đoán đầu tiên");
             assertEquals(count, f.messages.get(1).size());
         }
     }
@@ -258,7 +258,7 @@ class GameManagerTest {
             f.advance(30); f.advance(3);
             GameResult result = assertInstanceOf(GameResult.class, f.last(1, MessageType.GAME_RESULT).getData());
             assertEquals(List.of(1, 1, 3, 4), result.getPlayers().stream().map(ScoreEntry::getRank).toList());
-            assertEquals(5, result.getPlayers().getFirst().getScore());
+            assertEquals(7, result.getPlayers().getFirst().getScore());
             assertEquals(1.0, result.getPlayers().getFirst().getAverageGuessTime());
             assertEquals(1, f.finished.get());
             f.game.tick(1);
@@ -323,7 +323,7 @@ class GameManagerTest {
             f.guess(3, "Con mèo", 3);
             assertEquals(0, f.score(1), "Tranh bị loại thì người vẽ không được cộng thêm");
             assertEquals(guesserBefore, f.score(2), "Người đoán giữ nguyên điểm của mình");
-            assertEquals(1, f.score(3));
+            assertEquals(3, f.score(3));
 
             f.advance(30);
             f.advance(3);
@@ -377,7 +377,7 @@ class GameManagerTest {
             assertEquals(hint, round.getHint());
             assertTrue(f.guessResult(2).isCorrect() && f.guessResult(2).isLocked(), "Đã đoán đúng trước khi rớt mạng");
             assertTrue(f.entry(2).isOnline());
-            assertEquals(2, f.score(2), "Điểm đã có được giữ nguyên");
+            assertEquals(4, f.score(2), "Điểm đã có được giữ nguyên");
         }
     }
 
@@ -406,6 +406,47 @@ class GameManagerTest {
             assertEquals("Con hổ", f.prompt(4).getWord());
             assertEquals(40, f.prompt(4).getSeconds());
             assertTrue(f.messages.get(4).stream().noneMatch(m -> m.getType() == MessageType.ROUND_START));
+        }
+    }
+
+    @Test
+    void fasterCorrectGuessesEarnOneMorePointForEveryTenSecondsSaved() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.guess(2, "Con mèo", 5);
+            assertEquals(4, f.guessResult(2).getPoints(), "0–10 giây: 3 điểm + 1 thưởng đoán đầu tiên");
+            f.guess(3, "Con mèo", 15);
+            assertEquals(2, f.guessResult(3).getPoints(), "10–20 giây: 2 điểm");
+            f.guess(4, "Con mèo", 25);
+            assertEquals(1, f.guessResult(4).getPoints(), "20–30 giây: 1 điểm");
+            assertEquals(List.of(4, 2, 1), List.of(f.score(2), f.score(3), f.score(4)));
+            assertEquals(3, f.score(1), "Người vẽ vẫn được 1 điểm cho mỗi người đoán đúng");
+        }
+    }
+
+    @Test
+    void speedPointsStepDownEveryTenSecondsButNeverBelowOne() {
+        long second = 1_000_000_000L;
+        assertEquals(3, GameManager.speedPoints(0));
+        assertEquals(3, GameManager.speedPoints(10 * second - 1));
+        assertEquals(2, GameManager.speedPoints(10 * second));
+        assertEquals(1, GameManager.speedPoints(20 * second));
+        assertEquals(1, GameManager.speedPoints(29 * second));
+    }
+
+    @Test
+    void chatCannotRevealWordsThatAreStillSecret() throws Exception {
+        try (Fixture f = new Fixture()) {
+            assertTrue(f.game.revealsWord(1, "đáp án là CON MÈO nhé"));
+            assertTrue(f.game.revealsWord(1, "con meo"), "Không dấu vẫn bị chặn");
+            assertTrue(f.game.revealsWord(1, "conchó!!"), "Viết liền vẫn bị chặn");
+            assertFalse(f.game.revealsWord(1, "các bạn vẽ đẹp quá"));
+            assertFalse(f.game.revealsWord(1, "con gì thế nhỉ"));
+            f.startGuessing();
+            f.advance(30); // Hết vòng 1: đáp án "Con mèo" đã công bố.
+            assertFalse(f.game.revealsWord(1, "hóa ra là con mèo"));
+            assertTrue(f.game.revealsWord(1, "con voi"), "Từ của các vòng sau vẫn bí mật");
+            assertFalse(f.game.revealsWord(2, "con voi"), "Phòng không có trận thì không chặn");
         }
     }
 

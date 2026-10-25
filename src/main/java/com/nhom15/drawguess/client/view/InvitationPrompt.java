@@ -47,6 +47,7 @@ public final class InvitationPrompt {
             if (dialog.getResult() == ACCEPT) { accept.run(); } else { decline.run(); }
         });
         dialog.show();
+        ThemedDialog.ring(dialog);
         expiry.play();
         return dialog;
     }

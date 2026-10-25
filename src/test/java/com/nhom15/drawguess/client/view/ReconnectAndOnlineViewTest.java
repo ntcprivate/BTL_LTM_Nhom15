@@ -59,7 +59,10 @@ class ReconnectAndOnlineViewTest {
         ready.get(15, TimeUnit.SECONDS);
     }
 
+    @BeforeEach void stillFrames() { UiTheme.motionPreference = () -> true; }
+
     @AfterEach void closeWindows() throws Exception {
+        UiTheme.motionPreference = () -> Platform.getPreferences().isReducedMotion();
         ui(() -> { for (var window : List.copyOf(javafx.stage.Window.getWindows())) { window.hide(); } });
     }
 

@@ -3,11 +3,9 @@ package com.nhom15.drawguess.server.game;
 import com.nhom15.drawguess.common.protocol.*;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -23,6 +21,9 @@ public class RoomManager {
     public static final int INVITE_COOLDOWN_SECONDS = 10;
     // Mọi người sẵn sàng thì đếm ngược chừng này giây rồi mới vào trận; trong lúc đó ai cũng hủy được.
     public static final int START_COUNTDOWN_SECONDS = 5;
+    public static final int CHAT_MAX_LENGTH = 200;
+    // Mỗi người gửi tối đa một tin nhắn mỗi 0,4 giây để không ai làm trôi khung chat.
+    private static final long CHAT_INTERVAL_NANOS = TimeUnit.MILLISECONDS.toNanos(400);
 
     // Hẹn giờ chạy một việc sau vài giây; test dùng IMMEDIATE hoặc bộ hẹn giờ chạy tay.
     public interface StartTimer {
@@ -44,6 +45,7 @@ public class RoomManager {
     private final StartTimer startTimer;
     // (người mời, người được mời) -> lúc mời gần nhất, để chặn mời liên tục cùng một người.
     private final Map<Long, Long> lastInvites = new ConcurrentHashMap<>();
+    private final Map<Integer, Long> lastChats = new ConcurrentHashMap<>();
 
     public RoomManager() {
         this(null);
@@ -101,11 +103,6 @@ public class RoomManager {
             if (room.players.size() >= MAX_PLAYERS) {
                 memberships.remove(user.getId(), room);
                 sender.accept(new Message(MessageType.JOIN_FAILED, "ROOM_FULL"));
-                return;
-            }
-            if (room.banned.contains(user.getId())) {
-                memberships.remove(user.getId(), room);
-                sender.accept(new Message(MessageType.JOIN_FAILED, "KICKED_FROM_ROOM"));
                 return;
             }
             room.players.put(user.getId(), new Player(user, sender));
@@ -224,8 +221,7 @@ public class RoomManager {
             } else if (targetId == hostId || !room.players.containsKey(targetId)) {
                 sender.accept(new Message(MessageType.ACTION_FAILED, "INVALID_TARGET"));
             } else {
-                // Người bị chủ phòng mời ra không vào lại được cho tới khi phòng trống.
-                room.banned.add(targetId);
+                // Người bị mời ra vẫn tự vào lại hoặc được mời lại vào phòng như bình thường.
                 expel(room, targetId, "HOST_KICK");
                 sender.accept(new Message(MessageType.ACTION_SUCCESS, "KICK_PLAYER"));
                 broadcast(room, MessageType.ROOM_INFO);
@@ -248,7 +244,6 @@ public class RoomManager {
     private void updateHost(Room room) {
         if (room.players.containsKey(room.hostId)) { return; }
         room.hostId = room.players.keySet().stream().findFirst().orElse(0);
-        if (room.players.isEmpty()) { room.banned.clear(); }
     }
 
     private void updateWaitingStatus(Room room) {
@@ -394,8 +389,6 @@ public class RoomManager {
                 error = "ROOM_FULL";
             } else if (memberships.containsKey(target.getId())) {
                 error = "TARGET_BUSY";
-            } else if (room.banned.contains(target.getId())) {
-                error = "TARGET_KICKED";
             } else if (!tryStartCooldown(inviter.getId(), target.getId())) {
                 error = "INVITE_COOLDOWN";
             }
@@ -406,6 +399,39 @@ public class RoomManager {
             targetSender.accept(new Message(MessageType.INVITATION, new Invitation(inviter.getId(),
                     inviter.getUsername(), target.getId(), target.getUsername(), room.id)));
             reply.accept(new Message(MessageType.ACTION_SUCCESS, "INVITE_PLAYER"));
+        }
+    }
+
+    // Chat trong phòng (lúc chờ, lúc chơi và lúc xem kết quả). Không cho gửi tin để lộ từ khóa của trận đang chơi.
+    public void chat(UserInfo user, Object payload, Consumer<Message> reply) {
+        Room room = memberships.get(user.getId());
+        if (room == null) {
+            reply.accept(new Message(MessageType.ACTION_FAILED, "NOT_IN_ROOM"));
+            return;
+        }
+        String text = payload instanceof String value ? value.strip() : "";
+        if (text.isEmpty() || text.length() > CHAT_MAX_LENGTH) {
+            reply.accept(new Message(MessageType.ACTION_FAILED, "INVALID_CHAT"));
+            return;
+        }
+        synchronized (room) {
+            String error = null;
+            long now = clock.getAsLong();
+            Long previous = lastChats.get(user.getId());
+            if (memberships.get(user.getId()) != room) {
+                error = "NOT_IN_ROOM";
+            } else if (previous != null && now - previous < CHAT_INTERVAL_NANOS) {
+                error = "CHAT_TOO_FAST";
+            } else if (gameManager != null && gameManager.revealsWord(room.id, text)) {
+                error = "CHAT_HAS_ANSWER";
+            }
+            if (error != null) {
+                reply.accept(new Message(MessageType.ACTION_FAILED, error));
+                return;
+            }
+            lastChats.put(user.getId(), now);
+            broadcast(room, MessageType.CHAT_MESSAGE,
+                    new ChatMessage(user.getId(), user.getUsername(), text, System.currentTimeMillis()));
         }
     }
 
@@ -469,7 +495,6 @@ public class RoomManager {
     private static class Room {
         final int id;
         final Map<Integer, Player> players = new LinkedHashMap<>();
-        final Set<Integer> banned = new HashSet<>();
         RoomStatus status = RoomStatus.WAITING;
         int hostId;
         // Tăng mỗi lần bắt đầu đếm ngược, để việc hẹn giờ của lượt đếm cũ biết mình đã hết hiệu lực.

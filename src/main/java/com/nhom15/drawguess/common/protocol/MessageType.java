@@ -64,5 +64,7 @@ public enum MessageType {
     // Mã nối lại phiên: máy vừa mất mạng dùng mã này để lấy lại phiên cũ còn treo trên server.
     GET_RESUME_TOKEN, RESUME_TOKEN,
     // Mọi người sẵn sàng: đếm ngược trước khi vào trận (data: số giây); ai bấm "chưa sẵn sàng" thì hủy (data: tên người đó).
-    START_COUNTDOWN, START_CANCELLED
+    START_COUNTDOWN, START_CANCELLED,
+    // Chat trong phòng: client gửi chữ, server phát ChatMessage cho cả phòng.
+    CHAT_SEND, CHAT_MESSAGE
 }

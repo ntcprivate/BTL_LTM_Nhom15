@@ -45,6 +45,9 @@ class ThemedDialogViewTest {
         ready.get(15, TimeUnit.SECONDS);
     }
 
+    // Ảnh chụp lấy trạng thái cuối, không chụp giữa hiệu ứng mở hộp thoại.
+    @BeforeEach void stillFrames() { UiTheme.motionPreference = () -> true; }
+
     @AfterEach void restore() throws Exception {
         ThemedDialog.presenter = Dialog::showAndWait;
         UiTheme.motionPreference = () -> javafx.application.Platform.getPreferences().isReducedMotion();

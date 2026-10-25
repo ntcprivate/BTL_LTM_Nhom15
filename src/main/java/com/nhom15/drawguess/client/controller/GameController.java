@@ -30,12 +30,21 @@ public class GameController {
         matchId = prompt.getMatchId();
         view = new GameView(userId, avatars, this::guess, back, leave, logout);
         view.setOnReport(() -> send.accept(new Message(MessageType.REPORT_DRAWING, new ReportRequest(matchId, round))));
+        view.setOnChat(text -> send.accept(new Message(MessageType.CHAT_SEND, text)));
         view.showDrawing(prompt);
         UiTheme.show(root, view);
     }
 
     public void showMessage(String message) {
         view.showMessage(message);
+    }
+
+    public void setOnPlayAgain(Runnable action) {
+        view.setOnPlayAgain(action);
+    }
+
+    public void showRematch(RoomInfo room) {
+        if (!closed) { view.showRematch(room); }
     }
 
     private void guess() {
@@ -121,12 +130,29 @@ public class GameController {
                 if ("DRAW_UPLOAD".equals(message.getData())) { view.showMessage("Đã gửi tranh. Đang chờ các người chơi khác."); }
                 if ("REPORT_DRAWING".equals(message.getData())) { view.markReported(); }
             }
+            case CHAT_MESSAGE -> {
+                if (message.getData() instanceof ChatMessage chat) { view.addChat(chat); }
+            }
             case ACTION_FAILED, GAME_ERROR -> {
+                String chatError = chatError(String.valueOf(message.getData()));
+                if (chatError != null) {
+                    view.showChatNotice(chatError);
+                    return;
+                }
                 if ("ALREADY_REPORTED".equals(message.getData())) { view.markReported(); }
                 view.showMessage(errorMessage(String.valueOf(message.getData())));
             }
             default -> { }
         }
+    }
+
+    private static String chatError(String reason) {
+        return switch (reason) {
+            case "CHAT_HAS_ANSWER" -> "Tin nhắn có chứa từ khóa đang được đoán nên không gửi được.";
+            case "CHAT_TOO_FAST" -> "Bạn nhắn hơi nhanh, chờ một chút rồi gửi tiếp nhé.";
+            case "INVALID_CHAT" -> "Tin nhắn cần từ 1 đến " + com.nhom15.drawguess.client.view.ChatPanel.MAX_LENGTH + " ký tự.";
+            default -> null;
+        };
     }
 
     public static String errorMessage(String reason) {
