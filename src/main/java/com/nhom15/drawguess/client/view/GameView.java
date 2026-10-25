@@ -60,6 +60,8 @@ public class GameView extends BorderPane {
     private final HBox reportBar = new HBox(10, report, reportStatus);
     private Runnable onReport = () -> {};
     private String drawerName = "";
+    // Đã đoán đúng tranh đang đoán: không báo cáo tranh này được nữa.
+    private boolean solvedRound;
     private final TextField answer = new TextField();
     private final Button guess = new Button("Đoán");
     private final HBox guessRow = new HBox(8, answer, guess);
@@ -379,7 +381,8 @@ public class GameView extends BorderPane {
         if (ThemedDialog.confirm(this, ThemedDialog.Tone.WARNING, Icons.Glyph.FLAG,
                 "Báo cáo tranh của " + drawerName + "?",
                 "Chỉ báo cáo khi tranh không liên quan tới từ khóa hoặc có nội dung không phù hợp. "
-                        + "Nếu quá nửa người đoán cùng báo cáo, người vẽ sẽ không được điểm ở vòng này.",
+                        + "Nếu quá nửa người đoán cùng báo cáo, người vẽ sẽ không được điểm ở vòng này.\n"
+                        + "Sau khi báo cáo, bạn sẽ không đoán tiếp tranh này nữa.",
                 "Báo cáo", "Hủy")) {
             report.setDisable(true);
             onReport.run();
@@ -397,10 +400,24 @@ public class GameView extends BorderPane {
         onReport = action;
     }
 
-    // Đã gửi báo cáo thành công (hoặc server cho biết đã báo cáo trước đó).
+    // Đã gửi báo cáo thành công (hoặc server cho biết đã báo cáo trước đó): không đoán tiếp tranh này.
     public void markReported() {
         report.setText("Đã báo cáo");
         report.setDisable(true);
+        if (!guess.isDisabled() || !answer.isDisabled()) {
+            lockGuess();
+            status.setText("Bạn đã báo cáo tranh này nên không đoán tiếp. Chờ lượt sau nhé.");
+            UiTheme.status(status, "info");
+        }
+    }
+
+    // Đoán đúng rồi thì tranh đoán được, không báo cáo nữa.
+    private void markSolved() {
+        solvedRound = true;
+        report.setDisable(true);
+        if (!reportStatus.getStyleClass().contains("report-rejected")) {
+            reportStatus.setText("Bạn đã đoán đúng nên không báo cáo tranh này.");
+        }
     }
 
     public void showReportStatus(ReportStatus status) {
@@ -411,7 +428,7 @@ public class GameView extends BorderPane {
             report.setDisable(true);
         } else {
             reportStatus.setText("Báo cáo: " + status.getReports() + "/" + status.getNeeded()
-                    + " (cần quá nửa người đoán)");
+                    + " (cần quá nửa người đoán)" + (solvedRound ? ". Bạn đã đoán đúng nên không báo cáo." : ""));
         }
     }
 
@@ -562,6 +579,7 @@ public class GameView extends BorderPane {
         answer.clear();
         boolean owner = round.getDrawerId() == userId;
         drawerName = round.getDrawerName();
+        solvedRound = false;
         showReportBar(true);
         report.setText("Báo cáo tranh");
         report.setDisable(owner);
@@ -603,12 +621,16 @@ public class GameView extends BorderPane {
             case "WRONG_ANSWER" -> "Chưa đúng. Còn " + result.getAttemptsLeft() + " lần đoán.";
             case "INVALID_ANSWER" -> "Đáp án phải có từ 1 đến 100 ký tự.";
             case "OWN_DRAWING" -> "Bạn không được đoán tranh của mình.";
+            case "REPORTED" -> "Bạn đã báo cáo tranh này nên không đoán tiếp được.";
             default -> "Lượt đoán đã kết thúc hoặc bạn đã hết lượt đoán.";
         };
         status.setText(message);
         UiTheme.status(status, "CORRECT".equals(result.getReason()) ? "success"
                 : result.isLocked() ? "error" : "info");
-        if ("CORRECT".equals(result.getReason())) { flashGuess("guess-row-correct", false); }
+        if ("CORRECT".equals(result.getReason())) {
+            flashGuess("guess-row-correct", false);
+            markSolved();
+        }
         else if ("WRONG_ANSWER".equals(result.getReason())) { flashGuess("guess-row-wrong", true); }
         if (!result.isLocked()) { answer.requestFocus(); }
     }

@@ -1549,3 +1549,44 @@
     -fx-text-fill: #62657a;
     -fx-wrap-text: true;
 }
+/* Lịch sử trận: các lượt được nhóm theo vòng đấu (chủ đề). */
+.history-stage {
+    -fx-background-color: rgba(255, 253, 243, 0.7);
+    -fx-background-radius: 14px;
+    -fx-border-color: #e6cf86;
+    -fx-border-radius: 14px;
+    -fx-padding: 10px;
+}
+
+.history-stage-badge {
+    -fx-background-color: #173f84;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #fff7d1;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-padding: 3px 10px;
+}
+
+.history-stage-topic {
+    -fx-text-fill: #173f73;
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+}
+
+.history-stage-meta {
+    -fx-text-fill: #62657a;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.round-card:hover {
+    -fx-background-color: #fff1b8;
+}
+
+.round-card-selected,
+.round-card-selected:hover {
+    -fx-background-color: #ffe9a8;
+    -fx-border-color: #1d4f91;
+    -fx-border-width: 2px;
+    -fx-padding: 8px 10px;
+}

@@ -303,36 +303,39 @@ class GameManagerTest {
             f.guess(2, "Con mèo", 1);
             assertEquals(1, f.score(1), "Người vẽ được +1 khi có người đoán đúng");
 
-            f.report(2, 0);
-            assertEquals("REPORT_DRAWING", f.last(2, MessageType.ACTION_SUCCESS).getData());
-            ReportStatus status = f.reportStatus(3);
+            f.report(3, 0);
+            assertEquals("REPORT_DRAWING", f.last(3, MessageType.ACTION_SUCCESS).getData());
+            ReportStatus status = f.reportStatus(4);
             assertEquals(1, status.getReports());
             assertEquals(2, status.getNeeded(), "3 người đoán: cần ít nhất 2 phiếu (quá nửa)");
             assertFalse(status.isRejected());
             assertEquals(1, f.score(1), "Chưa đủ phiếu thì người vẽ vẫn giữ điểm");
 
-            f.report(2, 0);
-            assertEquals("ALREADY_REPORTED", f.last(2, MessageType.ACTION_FAILED).getData());
+            f.report(3, 0);
+            assertEquals("ALREADY_REPORTED", f.last(3, MessageType.ACTION_FAILED).getData());
             f.report(1, 0);
             assertEquals("OWN_DRAWING", f.last(1, MessageType.ACTION_FAILED).getData());
 
-            f.report(3, 0);
-            assertTrue(f.reportStatus(4).isRejected());
-            assertEquals(0, f.score(1), "Đủ phiếu thì người vẽ mất điểm đã nhận ở vòng này");
             int guesserBefore = f.score(2);
-            f.guess(3, "Con mèo", 3);
-            assertEquals(0, f.score(1), "Tranh bị loại thì người vẽ không được cộng thêm");
+            f.report(4, 0);
+            assertTrue(f.reportStatus(2).isRejected());
+            assertEquals(0, f.score(1), "Đủ phiếu thì người vẽ mất điểm đã nhận ở vòng này");
             assertEquals(guesserBefore, f.score(2), "Người đoán giữ nguyên điểm của mình");
-            assertEquals(3, f.score(3));
 
-            f.advance(30);
+            // Người 2 đã đúng, 3 và 4 đã báo cáo: lượt kết thúc ngay, không chờ hết 30 giây.
             f.advance(3);
             assertEquals(1, f.round().getRoundIndex());
             f.roundStarted = f.clock.get();
-            int drawerBefore = f.score(2);
-            f.guess(1, "Con chó", 1);
-            assertEquals(drawerBefore + 1, f.score(2), "Vòng mới không còn bị ảnh hưởng bởi báo cáo cũ");
             assertEquals(0, f.reportStatuses(4, 1), "Vòng mới bắt đầu với 0 báo cáo");
+            f.report(3, 1);
+            assertFalse(f.reportStatus(4).isRejected(), "Vòng mới không còn bị ảnh hưởng bởi báo cáo cũ");
+            f.report(4, 1);
+            assertTrue(f.reportStatus(1).isRejected());
+            int drawerBefore = f.score(2);
+            int guesser = f.score(1);
+            f.guess(1, "Con chó", 1);
+            assertEquals(drawerBefore, f.score(2), "Tranh bị loại thì người vẽ không được cộng thêm");
+            assertEquals(guesser + 4, f.score(1), "Người đoán đúng vẫn được điểm");
             f.report(3, 0);
             assertEquals("REPORT_NOT_ACTIVE", f.last(3, MessageType.ACTION_FAILED).getData());
         }
@@ -342,11 +345,12 @@ class GameManagerTest {
     void reportsCanBeSentDuringAnswerRevealAndCountOnlyOnlineGuessers() throws Exception {
         try (Fixture f = new Fixture()) {
             f.startGuessing();
-            f.guess(2, "Con mèo", 1);
-            f.guess(3, "Con mèo", 2);
-            f.guess(4, "Con mèo", 3);
-            assertEquals(3, f.score(1));
-            // Mọi người đã đoán xong: vòng chuyển sang công bố đáp án nhưng vẫn còn báo cáo được.
+            f.guess(3, "Con mèo", 1);
+            f.guess(4, "Con mèo", 2);
+            for (int attempt = 0; attempt < 3; attempt++) { f.guess(2, "Con cá", 3 + attempt); }
+            assertEquals(2, f.score(1));
+            assertTrue(f.messages.get(1).stream().anyMatch(m -> m.getType() == MessageType.ANSWER));
+            // Mọi người đã đoán xong: vòng chuyển sang công bố đáp án nhưng người chưa đoán đúng vẫn báo cáo được.
             f.report(2, 0);
             assertEquals(2, f.reportStatus(2).getNeeded());
             f.game.disconnect(1, 4);
@@ -556,6 +560,53 @@ class GameManagerTest {
             assertEquals("Phở", history.rounds().get(5).word());
             assertEquals("2-2.png", Path.of(history.rounds().get(5).imagePath()).getFileName().toString(), "Tranh mỗi vòng là một file riêng");
             assertEquals("2.png", Path.of(history.rounds().get(1).imagePath()).getFileName().toString());
+        }
+    }
+
+    @Test
+    void playerWhoGuessedCorrectlyCannotReportTheDrawing() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.guess(2, "Con mèo", 5);
+            f.report(2, 0);
+            assertEquals("ALREADY_SOLVED", f.last(2, MessageType.ACTION_FAILED).getData());
+            assertTrue(f.messages.get(3).stream().noneMatch(m -> m.getType() == MessageType.REPORT_STATUS),
+                    "Báo cáo bị từ chối thì không được tính");
+            f.report(3, 0);
+            assertEquals(1, f.reportStatus(3).getReports(), "Người chưa đoán đúng vẫn báo cáo được");
+        }
+    }
+
+    @Test
+    void playerWhoReportedCannotGuessAndNoLongerHoldsUpTheRound() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.report(2, 0);
+            f.guess(2, "Con mèo", 3);
+            GuessResult blocked = f.guessResult(2);
+            assertFalse(blocked.isCorrect());
+            assertTrue(blocked.isLocked());
+            assertEquals("REPORTED", blocked.getReason());
+            assertEquals(0, f.score(2), "Báo cáo rồi thì không ăn điểm từ tranh đó");
+            assertEquals(3, blocked.getAttemptsLeft(), "Lượt bị chặn không tính là một lần đoán");
+
+            f.guess(3, "Con mèo", 4);
+            f.guess(4, "Con mèo", 5);
+            assertEquals("Con mèo", ((RoundAnswer) f.last(1, MessageType.ANSWER).getData()).getWord(),
+                    "Hai người còn lại đoán xong thì lượt kết thúc, không chờ người đã báo cáo");
+        }
+    }
+
+    @Test
+    void roundEndsAsSoonAsEveryRemainingGuesserHasReported() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            f.guess(4, "Sai rồi", 2);
+            f.report(2, 0);
+            f.report(3, 0);
+            assertTrue(f.messages.get(1).stream().noneMatch(m -> m.getType() == MessageType.ANSWER), "Người 4 vẫn đang đoán");
+            f.report(4, 0);
+            assertTrue(f.messages.get(1).stream().anyMatch(m -> m.getType() == MessageType.ANSWER));
         }
     }
 

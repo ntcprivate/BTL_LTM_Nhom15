@@ -9,6 +9,7 @@ import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -185,6 +186,36 @@ class GameChatAndRematchViewTest {
 
             button(view, "Xóa tranh").fire();
             assertEquals(0xffffffff, view.captureDrawing()[center], "Xóa tranh xóa luôn tranh nền");
+        });
+    }
+
+    @Test void guessingCorrectlyDisablesReportAndReportingLocksGuessing() throws Exception {
+        ui(() -> {
+            GameView view = game(new ArrayList<>());
+            show(view, 1440, 860);
+            view.showRound(new RoundInfo(MATCH, 0, 3, 2, "lan", "Động vật", sampleImage(), 30, "_ _ _"), 1);
+            Button report = button(view, "Báo cáo tranh");
+            assertFalse(report.isDisabled());
+            view.showGuessResult(new GuessResult(MATCH, 0, true, 2, true, "CORRECT", 4));
+            assertTrue(report.isDisabled(), "Đoán đúng rồi thì không báo cáo");
+            assertEquals("Bạn đã đoán đúng nên không báo cáo tranh này.", ((Label) view.lookup(".report-status")).getText());
+            view.showReportStatus(new ReportStatus(MATCH, 0, 2, 1, 2, false));
+            assertTrue(((Label) view.lookup(".report-status")).getText().endsWith("Bạn đã đoán đúng nên không báo cáo."));
+
+            // Lượt mới: người chưa đoán đúng báo cáo thì ô đoán bị khóa.
+            view.showRound(new RoundInfo(MATCH, 1, 3, 3, "minh", "Động vật", sampleImage(), 30, "_ _"), 1);
+            assertFalse(report.isDisabled(), "Lượt mới thì báo cáo lại được");
+            TextField answer = (TextField) view.lookup(".guess-row .text-field");
+            assertFalse(answer.isDisabled());
+            view.markReported();
+            assertTrue(answer.isDisabled());
+            assertTrue(button(view, "Đoán").isDisabled());
+            assertEquals("Bạn đã báo cáo tranh này nên không đoán tiếp. Chờ lượt sau nhé.",
+                    view.lookupAll(".label").stream().map(n -> ((Label) n).getText())
+                            .filter(t -> t != null && t.startsWith("Bạn đã báo cáo")).findFirst().orElseThrow());
+            view.showGuessResult(new GuessResult(MATCH, 1, false, 3, true, "REPORTED"));
+            assertTrue(answer.isDisabled());
+            snapshot(view, "game-reported-locks-guess.png");
         });
     }
 

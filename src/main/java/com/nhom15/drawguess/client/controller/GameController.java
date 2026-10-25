@@ -227,6 +227,7 @@ public class GameController {
             case "ALREADY_UPLOADED" -> "Tranh của bạn đã được gửi.";
             case "REPORT_NOT_ACTIVE" -> "Vòng này đã kết thúc nên không báo cáo được nữa.";
             case "ALREADY_REPORTED" -> "Bạn đã báo cáo tranh này rồi.";
+            case "ALREADY_SOLVED" -> "Bạn đã đoán đúng tranh này nên không báo cáo được.";
             case "OWN_DRAWING" -> "Bạn không thể báo cáo tranh của chính mình.";
             default -> "Không thực hiện được yêu cầu trong trận đấu.";
         };

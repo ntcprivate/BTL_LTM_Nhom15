@@ -195,6 +195,10 @@ public class GameManager implements AutoCloseable {
             if (player.solved || player.attempts >= 3) {
                 guessReply(reply, request, false, player, true, "GUESS_LOCKED"); return;
             }
+            // Đã báo cáo tranh này thì không đoán tiếp (không thể vừa chê tranh vừa ăn điểm từ tranh đó).
+            if (match.reports.contains(userId)) {
+                guessReply(reply, request, false, player, true, "REPORTED"); return;
+            }
             String answer = request.getAnswer();
             if (answer == null || answer.isBlank() || answer.length() > 100) {
                 guessReply(reply, request, false, player, false, "INVALID_ANSWER"); return;
@@ -289,9 +293,13 @@ public class GameManager implements AutoCloseable {
                 fail(reply, "REPORT_NOT_ACTIVE"); return;
             }
             if (match.current().drawer == player) { fail(reply, "OWN_DRAWING"); return; }
+            // Đã đoán đúng nghĩa là tranh đoán được, nên không báo cáo nữa.
+            if (player.solved) { fail(reply, "ALREADY_SOLVED"); return; }
             if (!match.reports.add(userId)) { fail(reply, "ALREADY_REPORTED"); return; }
             reply.accept(new Message(MessageType.ACTION_SUCCESS, "REPORT_DRAWING"));
             applyReports(match);
+            // Người báo cáo không đoán nữa: có thể mọi người đoán đã xong lượt.
+            if (matches.get(roomId) == match && match.phase == GamePhase.GUESSING && everyoneDone(match)) { endRound(match); }
         }
     }
 
@@ -476,7 +484,7 @@ public class GameManager implements AutoCloseable {
     private boolean everyoneDone(Match match) {
         Player drawer = match.current().drawer;
         return match.players.values().stream().filter(p -> p.online && p != drawer)
-                .allMatch(p -> p.solved || p.attempts >= 3);
+                .allMatch(p -> p.solved || p.attempts >= 3 || match.reports.contains(p.id));
     }
 
     private void endRound(Match match) {
