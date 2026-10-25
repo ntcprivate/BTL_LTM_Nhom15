@@ -190,7 +190,7 @@ public class ClientHandler implements Runnable {
             case GET_HISTORY, GET_HISTORY_DETAIL, GET_CATALOG, EDIT_CATALOG -> {
                 handleDataMessage(message); return;
             }
-            case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, KICK_PLAYER, DRAW_UPLOAD, GUESS,
+            case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, KICK_PLAYER, DRAW_UPLOAD, DRAW_DRAFT, GUESS,
                  REPORT_DRAWING, GET_ONLINE_USERS, INVITE_PLAYER, DECLINE_INVITE, CHAT_SEND -> {
                 handleRoomMessage(message, receivedAt);
                 return;
@@ -311,7 +311,7 @@ public class ClientHandler implements Runnable {
                     sendMessage(new Message(MessageType.ACTION_FAILED, "INVALID_REQUEST"));
                 }
             }
-            case DRAW_UPLOAD, GUESS, REPORT_DRAWING ->
+            case DRAW_UPLOAD, DRAW_DRAFT, GUESS, REPORT_DRAWING ->
                     roomManager.handleGameMessage(currentUser.getId(), message, receivedAt, outbox);
             case CHAT_SEND -> roomManager.chat(currentUser, message.getData(), outbox);
             case GET_ONLINE_USERS -> {

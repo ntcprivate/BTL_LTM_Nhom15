@@ -163,6 +163,42 @@ class GameChatAndRematchViewTest {
         });
     }
 
+    @Test void restoredDraftBecomesTheBaseOfTheDrawingUntilCleared() throws Exception {
+        ui(() -> {
+            GameView view = game(new ArrayList<>());
+            show(view, 1440, 860);
+            view.showDrawing(new DrawingPrompt(MATCH, 1, "Động vật", "Con mèo", 40));
+            assertFalse(view.takeChanges(), "Chưa vẽ gì thì không cần gửi bản nháp");
+            view.restoreDrawing(sampleImage());
+            assertFalse(view.takeChanges(), "Tranh lấy lại từ server không phải nét mới");
+            int center = 250 * 500 + 250;
+            assertEquals(0xff000000, view.captureDrawing()[center], "Hình tròn đen của bản nháp hiện lại trên canvas");
+
+            javafx.scene.canvas.Canvas canvas = (javafx.scene.canvas.Canvas) view.lookup(".canvas-frame").getParent()
+                    .getChildrenUnmodifiable().stream().filter(javafx.scene.canvas.Canvas.class::isInstance).findFirst().orElseThrow();
+            drag(canvas, 20, 20, 60, 20);
+            assertTrue(view.takeChanges());
+            assertFalse(view.takeChanges(), "Đã lấy thay đổi thì đặt lại");
+            button(view, "Hoàn tác").fire();
+            assertTrue(view.takeChanges(), "Hoàn tác cũng là thay đổi");
+            assertEquals(0xff000000, view.captureDrawing()[center], "Hoàn tác không làm mất tranh nền");
+
+            button(view, "Xóa tranh").fire();
+            assertEquals(0xffffffff, view.captureDrawing()[center], "Xóa tranh xóa luôn tranh nền");
+        });
+    }
+
+    private static void drag(javafx.scene.canvas.Canvas canvas, double x1, double y1, double x2, double y2) {
+        canvas.fireEvent(mouse(javafx.scene.input.MouseEvent.MOUSE_PRESSED, x1, y1));
+        canvas.fireEvent(mouse(javafx.scene.input.MouseEvent.MOUSE_DRAGGED, x2, y2));
+        canvas.fireEvent(mouse(javafx.scene.input.MouseEvent.MOUSE_RELEASED, x2, y2));
+    }
+
+    private static javafx.scene.input.MouseEvent mouse(javafx.event.EventType<javafx.scene.input.MouseEvent> type, double x, double y) {
+        return new javafx.scene.input.MouseEvent(type, x, y, x, y, javafx.scene.input.MouseButton.PRIMARY, 1,
+                false, false, false, false, true, false, false, false, false, false, null);
+    }
+
     private static ToggleButton tab(Parent view, String text) {
         return (ToggleButton) view.lookupAll(".side-tab").stream()
                 .filter(n -> ((ToggleButton) n).getText().startsWith(text)).findFirst().orElseThrow();

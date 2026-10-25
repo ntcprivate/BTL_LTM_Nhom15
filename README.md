@@ -13,6 +13,10 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 - Trong phòng chờ, nút **Mời người chơi** hiện danh sách người đang online (đang rảnh / đang ở phòng nào / đang chơi). Ai trong phòng cũng mời được người đang rảnh; người được mời thấy hộp thoại **Vào phòng / Từ chối** (tự hết hạn sau 30 giây). Mỗi người chỉ mời lại cùng một người sau 10 giây.
 - Ở màn hình chọn phòng, nút **Xem danh sách** trong thẻ "Người đang online" cho xem ai đang online và đang ở đâu (chỉ xem, muốn mời thì vào phòng trước).
 - **Mất kết nối giữa trận** (rớt mạng, tắt game): client tự kết nối lại 5 lần, mỗi lần cách 2 giây, rồi đưa người chơi về đúng trận đang chơi với từ khóa, thời gian, gợi ý và điểm hiện tại. Nếu tắt hẳn game thì đăng nhập lại là tự vào lại trận, hoặc nhấp đúp vào phòng đang chơi của mình. Người chủ động bấm **Rời phòng** hoặc **Đăng xuất** khi đang chơi thì không vào lại được trận đó.
+- **Giữ tranh khi mất kết nối lúc đang vẽ**:
+  - Trong lúc vẽ, client gửi bản nháp tranh lên server mỗi 2 giây, nhưng chỉ khi có nét mới.
+  - Người vào lại kịp sẽ thấy tranh dở và vẽ tiếp được.
+  - Người không quay lại thì đến lượt đoán, cả phòng xem tranh cuối cùng của họ thay vì tranh trắng.
 - Khi vẽ có nút **Hoàn tác** (Ctrl+Z) để bỏ nét vẽ gần nhất hoặc khôi phục tranh vừa bị xóa (tối đa 20 bước).
 - Khi đoán, người chơi thấy gợi ý số chữ cái dạng `_ _ _   _ _ _`; sau 15 giây server mở thêm một chữ cái ngẫu nhiên.
 - Trong phiên đoán có nút **Báo cáo tranh** (khi tranh không đúng từ khóa, ví dụ viết chữ lên tranh). Khi **quá nửa** số người đoán đang online cùng báo cáo, người vẽ mất số điểm đã nhận ở vòng đó và không được cộng thêm; người đoán vẫn giữ điểm. Có thể báo cáo cả trong 3 giây công bố đáp án.

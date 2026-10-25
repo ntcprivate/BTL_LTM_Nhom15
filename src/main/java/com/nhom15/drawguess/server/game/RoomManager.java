@@ -452,6 +452,8 @@ public class RoomManager {
                 reply.accept(new Message(MessageType.ACTION_FAILED, "GAME_UNAVAILABLE"));
             } else if (message.getType() == MessageType.DRAW_UPLOAD) {
                 gameManager.upload(room.id, userId, message.getData(), reply);
+            } else if (message.getType() == MessageType.DRAW_DRAFT) {
+                gameManager.draft(room.id, userId, message.getData());
             } else if (message.getType() == MessageType.GUESS) {
                 gameManager.guess(room.id, userId, message.getData(), receivedAt, reply);
             } else if (message.getType() == MessageType.REPORT_DRAWING) {

@@ -450,6 +450,89 @@ class GameManagerTest {
         }
     }
 
+    @Test
+    void drawerWhoDisconnectsKeepsTheirLastDraftForGuessing() throws Exception {
+        try (Fixture f = new Fixture()) {
+            byte[] early = f.store.validate(sketch(100)), latest = f.store.validate(sketch(200));
+            f.draft(3, early);
+            f.advance(2);
+            f.draft(3, latest);
+            f.game.disconnect(1, 3);
+            f.advance(58);
+            for (int id : new int[]{1, 2, 4}) { f.upload(id, f.png); }
+            assertArrayEquals(f.png, f.round().getImage(), "Vòng 1 là tranh đã gửi bình thường");
+            f.advance(30); f.advance(3); f.advance(30); f.advance(3);
+            assertEquals(3, f.round().getDrawerId());
+            assertArrayEquals(latest, f.round().getImage(), "Người mất kết nối được dùng bản nháp cuối cùng, không phải tranh trắng");
+            assertTrue(f.saved.getLast().rounds().get(2).imagePath().endsWith("3.png"));
+        }
+    }
+
+    @Test
+    void reconnectingDrawerGetsTheirDraftBackBeforeBeingAskedToSubmit() throws Exception {
+        try (Fixture f = new Fixture()) {
+            byte[] drawing = f.store.validate(sketch(150));
+            f.draft(4, drawing);
+            f.advance(20);
+            f.game.disconnect(1, 4);
+            f.messages.get(4).clear();
+            f.game.reconnect(1, 4, f.sender(4));
+            assertArrayEquals(drawing, ((DrawUpload) f.last(4, MessageType.DRAW_DRAFT).getData()).getImage());
+
+            f.advance(40); // Hết giờ vẽ.
+            f.game.disconnect(1, 4);
+            f.messages.get(4).clear();
+            f.game.reconnect(1, 4, f.sender(4));
+            List<MessageType> order = f.messages.get(4).stream().map(Message::getType)
+                    .filter(t -> t == MessageType.DRAW_DRAFT || t == MessageType.SUBMIT_DRAW).toList();
+            assertEquals(List.of(MessageType.DRAW_DRAFT, MessageType.SUBMIT_DRAW), order,
+                    "Client dựng lại tranh rồi mới gửi, không gửi tranh trắng");
+        }
+    }
+
+    @Test
+    void draftsAreIgnoredWhenInvalidTooFrequentOrAfterTheFinalUpload() throws Exception {
+        try (Fixture f = new Fixture()) {
+            byte[] first = f.store.validate(sketch(100));
+            f.draft(2, first);
+            f.draft(2, sketch(200)); // Chưa đủ 1 giây.
+            f.advance(1);
+            f.draft(2, new byte[]{1, 2, 3});
+            draftFor(f, "matchId-sai", 2, sketch(250));
+            f.game.disconnect(1, 2);
+            f.messages.get(2).clear();
+            f.game.reconnect(1, 2, f.sender(2));
+            assertArrayEquals(first, ((DrawUpload) f.last(2, MessageType.DRAW_DRAFT).getData()).getImage());
+            assertTrue(f.messages.get(2).stream().noneMatch(m -> m.getType() == MessageType.ACTION_FAILED),
+                    "Bản nháp lỗi bị bỏ qua lặng lẽ");
+
+            f.advance(59);
+            f.upload(2, f.png);
+            f.advance(1);
+            f.draft(2, sketch(300));
+            for (int id : new int[]{1, 3, 4}) { f.upload(id, f.png); }
+            f.advance(30); f.advance(3);
+            assertEquals(2, f.round().getDrawerId());
+            assertArrayEquals(f.png, f.round().getImage(), "Tranh đã gửi chính thức không bị bản nháp thay thế");
+        }
+    }
+
+    private static void draftFor(Fixture f, String matchId, int id, byte[] image) {
+        f.game.draft(1, id, new DrawUpload(matchId, image));
+    }
+
+    // Tranh 500x500 có một hình tròn đen, đường kính tùy chọn để các tranh khác nhau.
+    private static byte[] sketch(int diameter) throws Exception {
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(500, 500, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var graphics = image.createGraphics();
+        graphics.setColor(java.awt.Color.WHITE); graphics.fillRect(0, 0, 500, 500);
+        graphics.setColor(java.awt.Color.BLACK); graphics.fillOval(250 - diameter / 2, 250 - diameter / 2, diameter, diameter);
+        graphics.dispose();
+        var output = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "png", output);
+        return output.toByteArray();
+    }
+
     private class Fixture implements AutoCloseable {
         final AtomicLong clock = new AtomicLong();
         final AtomicInteger finished = new AtomicInteger();
@@ -499,6 +582,7 @@ class GameManagerTest {
                     && ((ReportStatus) m.getData()).getRoundIndex() == round).count();
         }
         void upload(int id, byte[] image) { game.upload(1, id, new DrawUpload(matchId, image), sender(id)); }
+        void draft(int id, byte[] image) { game.draft(1, id, new DrawUpload(matchId, image)); }
         void startGuessing() {
             advance(60);
             for (int id = 1; id <= 4; id++) { upload(id, png); }

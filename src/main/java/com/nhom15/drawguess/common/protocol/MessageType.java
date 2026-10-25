@@ -66,5 +66,7 @@ public enum MessageType {
     // Mọi người sẵn sàng: đếm ngược trước khi vào trận (data: số giây); ai bấm "chưa sẵn sàng" thì hủy (data: tên người đó).
     START_COUNTDOWN, START_CANCELLED,
     // Chat trong phòng: client gửi chữ, server phát ChatMessage cho cả phòng.
-    CHAT_SEND, CHAT_MESSAGE
+    CHAT_SEND, CHAT_MESSAGE,
+    // Bản nháp tranh đang vẽ (DrawUpload): client gửi định kỳ; server gửi lại cho người vào lại trận.
+    DRAW_DRAFT
 }

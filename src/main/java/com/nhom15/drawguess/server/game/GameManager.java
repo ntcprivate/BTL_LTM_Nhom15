@@ -35,6 +35,8 @@ public class GameManager implements AutoCloseable {
     // Điểm theo tốc độ: đúng trong 10 giây đầu được 3, 10 giây tiếp được 2, sau đó 1.
     public static final int SPEED_STEP_SECONDS = 10;
     public static final int MAX_GUESS_POINTS = 3;
+    // Server nhận tối đa một bản nháp tranh mỗi giây cho mỗi người (client gửi 2 giây một lần).
+    private static final long DRAFT_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
     private final HistoryDAO historyDAO;
     private final WordDAO wordDAO;
     private final DrawingStore drawings;
@@ -140,6 +142,25 @@ public class GameManager implements AutoCloseable {
             persist(match);
             reply.accept(new Message(MessageType.ACTION_SUCCESS, "DRAW_UPLOAD"));
             if (allUploaded(match)) { beginGuessing(match); }
+        }
+    }
+
+    // Bản nháp tranh đang vẽ. Người chơi mất kết nối thì tranh cuối cùng vẫn được dùng khi hết giờ,
+    // và được gửi lại để vẽ tiếp nếu họ vào lại kịp. Bản nháp lỗi hoặc gửi quá dày thì bỏ qua, không báo lỗi.
+    public void draft(int roomId, int userId, Object payload) {
+        Match match = matches.get(roomId);
+        if (match == null) { return; }
+        synchronized (match.lock) {
+            if (matches.get(roomId) != match || !(payload instanceof DrawUpload upload)
+                    || !match.id.equals(upload.getMatchId())
+                    || (match.phase != GamePhase.DRAWING && match.phase != GamePhase.UPLOADING)) { return; }
+            Player player = match.players.get(userId);
+            if (player == null || !player.online || player.image != null) { return; }
+            long now = clock.getAsLong();
+            if (player.draft != null && now - player.draftAt < DRAFT_INTERVAL_NANOS) { return; }
+            try { player.draft = drawings.validate(upload.getImage()); }
+            catch (IOException e) { return; }
+            player.draftAt = now;
         }
     }
 
@@ -319,6 +340,11 @@ public class GameManager implements AutoCloseable {
             send(player, MessageType.ROUND_CATEGORY, match.category);
             send(player, MessageType.DRAW_WORD, new DrawingPrompt(match.id, roomId, match.category, player.word,
                     match.phase == GamePhase.DRAWING ? remaining : 0));
+            // Trả lại tranh đang vẽ dở (trước SUBMIT_DRAW để client gửi đúng tranh đó chứ không phải tranh trắng).
+            if ((match.phase == GamePhase.DRAWING || match.phase == GamePhase.UPLOADING)
+                    && player.image == null && player.draft != null) {
+                send(player, MessageType.DRAW_DRAFT, new DrawUpload(match.id, player.draft));
+            }
             if (match.phase == GamePhase.UPLOADING) {
                 // Client gửi ngay tranh đang có; đã gửi trước khi mất kết nối thì server báo ALREADY_UPLOADED.
                 send(player, MessageType.SUBMIT_DRAW, match.id);
@@ -365,7 +391,8 @@ public class GameManager implements AutoCloseable {
         try {
             for (Player player : match.order) {
                 if (player.image == null) {
-                    player.image = drawings.blank();
+                    // Người không gửi được tranh (thường do mất kết nối) dùng bản nháp cuối cùng, không có thì tranh trắng.
+                    player.image = player.draft != null ? player.draft : drawings.blank();
                     player.imagePath = drawings.save(match.id, player.id, player.image).toString();
                 }
             }
@@ -565,6 +592,8 @@ public class GameManager implements AutoCloseable {
         boolean online = true;
         byte[] image;
         String imagePath;
+        byte[] draft;
+        long draftAt;
         int score;
         int attempts;
         boolean solved;

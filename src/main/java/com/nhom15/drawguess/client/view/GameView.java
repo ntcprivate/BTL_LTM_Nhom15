@@ -51,6 +51,10 @@ public class GameView extends BorderPane {
     private final List<Stroke> strokes = new ArrayList<>();
     private Stroke currentStroke;
     private int undoableSteps;
+    // Tranh đang vẽ dở do server gửi lại khi vào lại trận; là nền của các nét vẽ cho tới lần "Xóa tranh".
+    private Image base;
+    // Có nét mới kể từ lần gửi bản nháp trước.
+    private boolean changed;
     private final Button report = Icons.attach(new Button("Báo cáo tranh"), Icons.Glyph.FLAG, 15);
     private final Label reportStatus = new Label();
     private final HBox reportBar = new HBox(10, report, reportStatus);
@@ -440,6 +444,7 @@ public class GameView extends BorderPane {
     }
 
     private void record(Stroke stroke) {
+        changed = true;
         strokes.add(stroke);
         undoableSteps = Math.min(undoableSteps + 1, UNDO_LIMIT);
         undo.setDisable(!drawing);
@@ -449,6 +454,7 @@ public class GameView extends BorderPane {
         if (!drawing || undoableSteps == 0) { return; }
         strokes.removeLast();
         undoableSteps--;
+        changed = true;
         currentStroke = null;
         redraw();
         undo.setDisable(undoableSteps == 0);
@@ -458,6 +464,7 @@ public class GameView extends BorderPane {
     private void redraw() {
         clearCanvas();
         int start = strokes.lastIndexOf(Stroke.CLEAR) + 1;
+        if (start == 0 && base != null) { canvas.getGraphicsContext2D().drawImage(base, 0, 0, 500, 500); }
         for (Stroke stroke : strokes.subList(start, strokes.size())) {
             double[] first = stroke.points().getFirst();
             paintDot(stroke, first[0], first[1]);
@@ -490,12 +497,26 @@ public class GameView extends BorderPane {
         undo.setDisable(!enabled || undoableSteps == 0);
     }
 
+    // Dựng lại tranh đang vẽ dở từ ảnh PNG server gửi về; các nét vẽ tiếp theo nằm trên ảnh này.
+    public void restoreDrawing(byte[] png) {
+        Image image = new Image(new ByteArrayInputStream(png));
+        if (image.isError() || image.getWidth() != 500 || image.getHeight() != 500) { return; }
+        base = image;
+        strokes.clear();
+        currentStroke = null;
+        undoableSteps = 0;
+        undo.setDisable(true);
+        redraw();
+    }
+
+    // Trả về true nếu tranh đã đổi kể từ lần gọi trước (để chỉ gửi bản nháp khi có nét mới).
+    public boolean takeChanges() {
+        boolean result = changed;
+        changed = false;
+        return result;
+    }
+
     public int[] captureDrawing() {
-        // Viền được vẽ bên trong canvas nên ảnh xuất vẫn đúng 500x500.
-        GraphicsContext graphics = canvas.getGraphicsContext2D();
-        graphics.setStroke(Color.LIGHTGRAY);
-        graphics.setLineWidth(1);
-        graphics.strokeRect(0.5, 0.5, 499, 499);
         SnapshotParameters parameters = new SnapshotParameters();
         parameters.setFill(Color.WHITE);
         WritableImage image = canvas.snapshot(parameters, null);
