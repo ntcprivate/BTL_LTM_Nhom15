@@ -2,7 +2,6 @@ package com.nhom15.drawguess.server.network;
 
 import com.nhom15.drawguess.common.protocol.Message;
 import com.nhom15.drawguess.common.protocol.MessageType;
-import com.nhom15.drawguess.common.protocol.RoomListData;
 import com.nhom15.drawguess.common.protocol.RegisterRequest;
 import com.nhom15.drawguess.common.protocol.LoginRequest;
 import com.nhom15.drawguess.common.protocol.UserInfo;
@@ -15,12 +14,18 @@ import com.nhom15.drawguess.server.game.RoomManager;
 import com.nhom15.drawguess.server.game.HistoryImageService;
 import com.nhom15.drawguess.common.protocol.HistoryData;
 import com.nhom15.drawguess.common.protocol.AvatarCatalog;
+import com.nhom15.drawguess.common.protocol.Invitation;
+import com.nhom15.drawguess.common.protocol.OnlineUser;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
 
@@ -36,7 +41,11 @@ public class ClientHandler implements Runnable {
     private final RoomManager roomManager;
     private final LongSupplier clock;
     private final HistoryImageService historyImages;
+    private final HistoryDAO historyDAO;
+    private final CatalogDAO catalogDAO;
     private UserInfo currentUser;
+    // Một đối tượng gửi duy nhất cho kết nối này để phòng/trận nhận ra kết nối nào đang giữ chỗ của người chơi.
+    private final Consumer<Message> outbox = this::sendMessage;
 
     private ObjectOutputStream output;
     private ObjectInputStream input;
@@ -70,6 +79,15 @@ public class ClientHandler implements Runnable {
     public ClientHandler(Socket socket, int clientId, UserDAO userDAO,
                          SessionManager sessionManager, RoomManager roomManager, LongSupplier clock,
                          HistoryImageService historyImages) {
+        this(socket, clientId, userDAO, sessionManager, roomManager, clock, historyImages,
+                new HistoryDAO(), new CatalogDAO());
+    }
+
+    public ClientHandler(Socket socket, int clientId, UserDAO userDAO,
+                         SessionManager sessionManager, RoomManager roomManager, LongSupplier clock,
+                         HistoryImageService historyImages, HistoryDAO historyDAO, CatalogDAO catalogDAO) {
+        this.historyDAO = historyDAO;
+        this.catalogDAO = catalogDAO;
         this.socket = socket;
         this.clientId = clientId;
         this.userDAO = userDAO;
@@ -134,7 +152,7 @@ public class ClientHandler implements Runnable {
 
         } finally {
 
-            clearSession();
+            clearSession(false);
 
             try {
                 socket.close();
@@ -172,7 +190,8 @@ public class ClientHandler implements Runnable {
             case GET_HISTORY, GET_HISTORY_DETAIL, GET_CATALOG, EDIT_CATALOG -> {
                 handleDataMessage(message); return;
             }
-            case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, DRAW_UPLOAD, GUESS -> {
+            case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, KICK_PLAYER, DRAW_UPLOAD, DRAW_DRAFT, GUESS,
+                 REPORT_DRAWING, GET_ONLINE_USERS, INVITE_PLAYER, DECLINE_INVITE, CHAT_SEND, GET_TOPICS, SET_STAGES -> {
                 handleRoomMessage(message, receivedAt);
                 return;
             }
@@ -187,9 +206,15 @@ public class ClientHandler implements Runnable {
             if (currentUser == null) {
                 sendMessage(new Message(MessageType.ACTION_FAILED, "NOT_LOGGED_IN"));
             } else {
-                clearSession();
+                clearSession(true);
                 sendMessage(new Message(MessageType.ACTION_SUCCESS, "LOGOUT"));
             }
+            return;
+        }
+        if (message.getType() == MessageType.GET_RESUME_TOKEN) {
+            String token = currentUser == null ? null : sessionManager.resumeTokenOf(currentUser.getId(), socket);
+            sendMessage(token == null ? new Message(MessageType.ACTION_FAILED, "NOT_LOGGED_IN")
+                    : new Message(MessageType.RESUME_TOKEN, token));
             return;
         }
 
@@ -227,19 +252,19 @@ public class ClientHandler implements Runnable {
         if (catalog && !"ADMIN".equals(currentUser.getRole())) { sendMessage(new Message(failure,"FORBIDDEN")); return; }
         try {
             switch (message.getType()) {
-                case GET_HISTORY -> sendMessage(new Message(MessageType.HISTORY_LIST,new HistoryDAO().list(currentUser.getId())));
+                case GET_HISTORY -> sendMessage(new Message(MessageType.HISTORY_LIST,historyDAO.list(currentUser.getId())));
                 case GET_HISTORY_DETAIL -> {
                     if (!(message.getData() instanceof String id)) throw new IllegalArgumentException("INVALID_REQUEST");
                     try { java.util.UUID.fromString(id); } catch (IllegalArgumentException e) { throw new IllegalArgumentException("INVALID_REQUEST"); }
-                    var detail = new HistoryDAO().detail(currentUser.getId(),id);
+                    var detail = historyDAO.detail(currentUser.getId(),id);
                     sendMessage(new Message(detail==null ? failure : MessageType.HISTORY_DETAIL,detail==null ? "NOT_FOUND_OR_UNFINISHED" : detail));
                 }
-                case GET_CATALOG -> sendMessage(new Message(MessageType.CATALOG,new CatalogDAO().list()));
+                case GET_CATALOG -> sendMessage(new Message(MessageType.CATALOG,catalogDAO.list()));
                 case EDIT_CATALOG -> {
                     if (!(message.getData() instanceof CatalogData.Edit edit)) throw new IllegalArgumentException("INVALID_REQUEST");
-                    new CatalogDAO().edit(edit);
+                    catalogDAO.edit(edit);
                     sendMessage(new Message(MessageType.CATALOG_SAVED));
-                    sendMessage(new Message(MessageType.CATALOG,new CatalogDAO().list()));
+                    sendMessage(new Message(MessageType.CATALOG,catalogDAO.list()));
                 }
                 default -> { }
             }
@@ -264,19 +289,68 @@ public class ClientHandler implements Runnable {
             return;
         }
         switch (message.getType()) {
-            case GET_ROOMS -> sendMessage(new Message(MessageType.ROOM_LIST,
-                    new RoomListData(roomManager.getRooms(), sessionManager.onlineCount())));
+            case GET_ROOMS -> {
+                sendMessage(new Message(MessageType.ROOM_LIST, roomManager.getRooms()));
+                // Đếm mọi tài khoản đã đăng nhập, kể cả người chưa vào phòng nào.
+                sendMessage(new Message(MessageType.ONLINE_COUNT, sessionManager.onlineCount()));
+            }
             case JOIN_ROOM -> {
                 if (!(message.getData() instanceof Integer roomId)) {
                     sendMessage(new Message(MessageType.JOIN_FAILED, "INVALID_REQUEST"));
                 } else {
-                    roomManager.join(currentUser, roomId, this::sendMessage);
+                    roomManager.join(currentUser, roomId, outbox);
                 }
             }
-            case LEAVE_ROOM -> roomManager.leave(currentUser.getId(), this::sendMessage);
-            case READY -> roomManager.ready(currentUser.getId(), true, this::sendMessage);
-            case CANCEL_READY -> roomManager.ready(currentUser.getId(), false, this::sendMessage);
-            case DRAW_UPLOAD, GUESS -> roomManager.handleGameMessage(currentUser.getId(), message, receivedAt, this::sendMessage);
+            case LEAVE_ROOM -> roomManager.leave(currentUser.getId(), outbox);
+            case READY -> roomManager.ready(currentUser.getId(), true, outbox);
+            case CANCEL_READY -> roomManager.ready(currentUser.getId(), false, outbox);
+            case KICK_PLAYER -> {
+                if (message.getData() instanceof Integer targetId) {
+                    roomManager.kick(currentUser.getId(), targetId, outbox);
+                } else {
+                    sendMessage(new Message(MessageType.ACTION_FAILED, "INVALID_REQUEST"));
+                }
+            }
+            case DRAW_UPLOAD, DRAW_DRAFT, GUESS, REPORT_DRAWING ->
+                    roomManager.handleGameMessage(currentUser.getId(), message, receivedAt, outbox);
+            case CHAT_SEND -> roomManager.chat(currentUser, message.getData(), outbox);
+            case SET_STAGES -> roomManager.setStages(currentUser.getId(), message.getData(), outbox);
+            case GET_TOPICS -> {
+                // Lỗi cơ sở dữ liệu thì gửi danh sách rỗng: chủ phòng vẫn chọn được "Ngẫu nhiên".
+                List<String> topics = List.of();
+                try { topics = new ArrayList<>(roomManager.topics()); }
+                catch (SQLException e) { System.err.println("Không tải được chủ đề: SQLState=" + e.getSQLState()); }
+                sendMessage(new Message(MessageType.TOPICS, new ArrayList<>(topics)));
+            }
+            case GET_ONLINE_USERS -> {
+                // Người đang rảnh lên đầu để dễ mời; không liệt kê chính mình và tài khoản quản trị.
+                List<OnlineUser> users = sessionManager.onlineUsers().stream()
+                        .filter(user -> user.getId() != currentUser.getId() && "USER".equals(user.getRole()))
+                        .map(roomManager::describe)
+                        .sorted(Comparator.comparing((OnlineUser user) -> !user.isAvailable())
+                                .thenComparing(OnlineUser::getUsername, String.CASE_INSENSITIVE_ORDER))
+                        .toList();
+                sendMessage(new Message(MessageType.ONLINE_USERS, new ArrayList<>(users)));
+            }
+            case INVITE_PLAYER -> {
+                if (message.getData() instanceof Integer targetId) {
+                    roomManager.invite(currentUser, sessionManager.userOf(targetId), sessionManager.senderOf(targetId),
+                            outbox);
+                } else {
+                    sendMessage(new Message(MessageType.ACTION_FAILED, "INVALID_REQUEST"));
+                }
+            }
+            case DECLINE_INVITE -> {
+                // Chỉ người được mời mới báo từ chối được; tên người từ chối lấy từ phiên của server.
+                if (message.getData() instanceof Invitation invitation && invitation.getToUserId() == currentUser.getId()) {
+                    var inviter = sessionManager.senderOf(invitation.getFromUserId());
+                    if (inviter != null) {
+                        inviter.accept(new Message(MessageType.INVITE_DECLINED, new Invitation(invitation.getFromUserId(),
+                                invitation.getFromUsername(), currentUser.getId(), currentUser.getUsername(),
+                                invitation.getRoomId())));
+                    }
+                }
+            }
             default -> { }
         }
     }
@@ -306,11 +380,18 @@ public class ClientHandler implements Runnable {
                 loginFailed("INVALID_CREDENTIALS");
             } else if (!("USER".equals(user.getRole()) || "ADMIN".equals(user.getRole()))) {
                 loginFailed("INVALID_ROLE");
-            } else if (!sessionManager.login(user.getId(), socket)) {
-                loginFailed("USER_ALREADY_ONLINE");
             } else {
+                SessionManager.Opened opened = sessionManager.open(user, socket, outbox, request.getResumeToken());
+                if (opened == null) {
+                    loginFailed("USER_ALREADY_ONLINE");
+                    return;
+                }
                 currentUser = user;
                 sendMessage(new Message(MessageType.LOGIN_SUCCESS, user));
+                // Đưa người chơi về phòng/trận đang dở trước khi đóng kết nối cũ,
+                // để việc dọn dẹp của kết nối cũ không kéo họ ra khỏi phòng.
+                if ("USER".equals(user.getRole())) { roomManager.reconnect(user, outbox); }
+                if (opened.replaced() != null) { closeQuietly(opened.replaced().socket()); }
             }
         } catch (SQLException e) {
             System.err.println("Lỗi đăng nhập của Client #" + clientId
@@ -334,6 +415,7 @@ public class ClientHandler implements Runnable {
                 return;
             }
             currentUser = currentUser.withAvatar(avatarKey);
+            sessionManager.updateUser(currentUser);
             sendMessage(new Message(MessageType.AVATAR_UPDATED, currentUser));
         } catch (SQLException e) {
             System.err.println("Lỗi cập nhật avatar Client #" + clientId
@@ -346,11 +428,21 @@ public class ClientHandler implements Runnable {
         sendMessage(new Message(MessageType.LOGIN_FAILED, reason));
     }
 
-    private void clearSession() {
+    // `abandon`: người chơi chủ động đăng xuất nên không được vào lại trận đang chơi; mất kết nối thì vẫn vào lại được.
+    private void clearSession(boolean abandon) {
         if (currentUser != null) {
-            roomManager.disconnect(currentUser.getId());
+            if (abandon) { roomManager.logout(currentUser.getId(), outbox); }
+            else { roomManager.disconnect(currentUser.getId(), outbox); }
             sessionManager.logout(currentUser.getId(), socket);
             currentUser = null;
+        }
+    }
+
+    private static void closeQuietly(Socket other) {
+        try {
+            if (other != null) { other.close(); }
+        } catch (IOException e) {
+            System.err.println("Không đóng được kết nối cũ: " + e.getMessage());
         }
     }
 

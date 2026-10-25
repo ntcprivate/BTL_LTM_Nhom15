@@ -7,7 +7,9 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.util.StringConverter;
 import java.io.ByteArrayInputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 public class HistoryView extends VBox {
@@ -19,7 +21,11 @@ public class HistoryView extends VBox {
     private final VBox roundCards = new VBox(8);
     private final VBox guessCards = new VBox(7);
     private final Label status=new Label();
+    // Chọn vòng (chủ đề) rồi chọn lượt (tranh của từng người) trong vòng đó.
+    private final ComboBox<HistoryData.Stage> stagePicker = new ComboBox<>();
     private final ComboBox<HistoryData.Round> rounds = new ComboBox<>();
+    private HistoryData.Detail detail;
+    private final Map<Integer, HBox> turnCards = new HashMap<>();
     private final ImageView drawing = new ImageView();
     private final Label imageStatus = new Label("Chọn một trận để xem tranh.");
     private final Label roundInfo = new Label();
@@ -32,12 +38,12 @@ public class HistoryView extends VBox {
         getStyleClass().add("content-card");
         setSpacing(14); setPadding(new Insets(22));
         setMaxWidth(Double.MAX_VALUE); setMaxHeight(Double.MAX_VALUE);
-        Button refresh=new Button("Làm mới"); Button returnButton=new Button("Về danh sách phòng");
+        Button refresh=new Button("Làm mới"); Button returnButton=new Button("Về trang chủ");
         refresh.getStyleClass().add("secondary-button");
         returnButton.getStyleClass().add("ghost-button");
         refresh.setOnAction(e -> { clearSelection(); status.setText("Đang tải..."); UiTheme.status(status,"info"); send.accept(new Message(MessageType.GET_HISTORY)); });
         returnButton.setOnAction(e -> { clearSelection(); back.run(); });
-        matches.setMinHeight(150); matches.setPrefHeight(180);
+        matches.setMinHeight(110); matches.setPrefHeight(220);
         matches.setCellFactory(list -> new ListCell<>() {
             @Override protected void updateItem(HistoryData.Summary match, boolean empty) {
                 super.updateItem(match, empty);
@@ -63,21 +69,41 @@ public class HistoryView extends VBox {
         overviewMeta.getStyleClass().add("subtle-text");
         overviewMeta.setWrapText(true);
         Label rankingTitle = new Label("Bảng xếp hạng"); rankingTitle.getStyleClass().add("history-block-title");
-        Label roundsTitle = new Label("Các vòng đã chơi"); roundsTitle.getStyleClass().add("history-block-title");
+        Label roundsTitle = new Label("Các vòng đã chơi (bấm một lượt để xem tranh)"); roundsTitle.getStyleClass().add("history-block-title");
         VBox overview = new VBox(13, overviewTitle, overviewMeta, rankingTitle, rankingCards,
                 new Separator(), roundsTitle, roundCards, details);
         overview.getStyleClass().add("history-overview");
         ScrollPane detailScroll=new ScrollPane(overview); detailScroll.setFitToWidth(true);
+        stagePicker.setMaxWidth(Double.MAX_VALUE);
+        stagePicker.setPromptText("Chọn vòng");
+        stagePicker.setAccessibleText("Chọn vòng đấu");
+        stagePicker.getStyleClass().add("history-stages");
+        stagePicker.setConverter(new StringConverter<>() {
+            @Override public String toString(HistoryData.Stage s) {
+                return s == null ? "" : s.label() + "  (" + s.rounds().size() + " lượt)";
+            }
+            @Override public HistoryData.Stage fromString(String value) { return null; }
+        });
+        stagePicker.valueProperty().addListener((o, old, s) -> {
+            rounds.getItems().setAll(s == null ? List.of() : s.rounds());
+            if (s != null && (rounds.getValue() == null || !s.rounds().contains(rounds.getValue()))) {
+                rounds.getSelectionModel().selectFirst();
+            }
+        });
         rounds.setMaxWidth(Double.MAX_VALUE);
-        rounds.setPromptText("Chọn vòng để xem tranh");
+        rounds.setPromptText("Chọn lượt để xem tranh");
+        rounds.setAccessibleText("Chọn lượt để xem tranh");
         rounds.getStyleClass().add("history-rounds");
         rounds.setConverter(new StringConverter<>() {
             @Override public String toString(HistoryData.Round r) {
-                return r == null ? "" : "Vòng " + (r.index() + 1) + " — " + r.drawer();
+                return r == null || detail == null ? "" : "Lượt " + HistoryData.turnNumber(detail, r) + " — " + r.drawer();
             }
             @Override public HistoryData.Round fromString(String value) { return null; }
         });
         rounds.valueProperty().addListener((o, old, r) -> loadImage());
+        HBox.setHgrow(stagePicker, Priority.ALWAYS);
+        HBox.setHgrow(rounds, Priority.ALWAYS);
+        HBox pickers = new HBox(10, stagePicker, rounds);
         drawing.setPreserveRatio(true);
         drawing.getStyleClass().add("history-image");
         drawing.setFitHeight(500);
@@ -86,13 +112,18 @@ public class HistoryView extends VBox {
         imageStatus.getStyleClass().add("history-image-status");
         reloadImage.setDisable(true);
         reloadImage.setOnAction(e -> loadImage());
-        Label previewTitle = new Label("Tranh của từng vòng");
+        Label previewTitle = new Label("Tranh của từng lượt");
         previewTitle.getStyleClass().add("section-title");
-        Label guessesTitle = new Label("Lượt đoán");
+        Label guessesTitle = new Label("Các câu đoán");
         guessesTitle.getStyleClass().add("history-block-title");
         reloadImage.getStyleClass().add("secondary-button");
         roundInfo.getStyleClass().add("round-summary");
-        VBox preview = new VBox(12, previewTitle, rounds, roundInfo, imageStatus, reloadImage,
+        imageStatus.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(imageStatus, Priority.ALWAYS);
+        reloadImage.setMinWidth(Region.USE_PREF_SIZE);
+        HBox imageActions = new HBox(10, imageStatus, reloadImage);
+        imageActions.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        VBox preview = new VBox(12, previewTitle, pickers, roundInfo, imageActions,
                 drawing, guessesTitle, guessCards);
         preview.setPadding(new Insets(14));
         ScrollPane imageScroll = new ScrollPane(preview);
@@ -100,12 +131,16 @@ public class HistoryView extends VBox {
         drawing.fitWidthProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
                 () -> Math.max(1, Math.min(500, imageScroll.getViewportBounds().getWidth() - 30)),
                 imageScroll.viewportBoundsProperty()));
-        drawing.fitHeightProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
-                () -> Math.max(180, Math.min(500, imageScroll.getViewportBounds().getHeight() - 200)),
-                imageScroll.viewportBoundsProperty()));
+        // Tranh vuông nên chiều cao theo chiều rộng khung, để ảnh to nhất có thể.
+        drawing.fitHeightProperty().bind(drawing.fitWidthProperty());
         SplitPane content = new SplitPane(detailScroll, imageScroll);
-        content.setDividerPositions(0.52);
-        VBox.setVgrow(content, Priority.ALWAYS);
+        content.setDividerPositions(0.46);
+        // Danh sách trận và phần chi tiết chia theo chiều dọc; kéo vạch ngăn để đổi kích thước.
+        SplitPane body = new SplitPane(matches, content);
+        body.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        body.setDividerPositions(0.3);
+        SplitPane.setResizableWithParent(matches, false);
+        VBox.setVgrow(body, Priority.ALWAYS);
         matches.getSelectionModel().selectedItemProperty().addListener((o,old,m) -> {
             clearSelection(); selectedId=m==null ? null : m.id();
             if(m!=null) { status.setText("Đang tải chi tiết..."); UiTheme.status(status,"info"); send.accept(new Message(MessageType.GET_HISTORY_DETAIL,m.id())); }
@@ -122,7 +157,7 @@ public class HistoryView extends VBox {
         HBox header = new HBox(16, heading, headerSpacer, painting);
         header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         UiTheme.status(status, "info");
-        getChildren().addAll(header, new HBox(12,refresh,returnButton),matches,status,content);
+        getChildren().addAll(header, new HBox(12,refresh,returnButton),status,body);
     }
     private void clearSelection() {
         selectedId = null;
@@ -132,6 +167,10 @@ public class HistoryView extends VBox {
         rankingCards.getChildren().clear();
         roundCards.getChildren().clear();
         guessCards.getChildren().clear();
+        detail = null;
+        turnCards.clear();
+        stagePicker.getItems().clear();
+        stagePicker.setValue(null);
         rounds.getItems().clear();
         rounds.setValue(null);
         drawing.setImage(null);
@@ -143,10 +182,13 @@ public class HistoryView extends VBox {
         drawing.setImage(null);
         HistoryData.Round r = rounds.getValue();
         reloadImage.setDisable(true);
+        turnCards.values().forEach(card -> card.getStyleClass().remove("round-card-selected"));
         if (selectedId == null || r == null) { return; }
+        HBox card = turnCards.get(r.index());
+        if (card != null) { card.getStyleClass().add("round-card-selected"); }
         renderRound(r);
         if (r.imagePath() == null || r.imagePath().isBlank()) {
-            imageStatus.setText("Vòng này chưa có ảnh được lưu.");
+            imageStatus.setText("Lượt này chưa có ảnh được lưu.");
             return;
         }
         imageStatus.setText("Đang tải tranh...");
@@ -175,29 +217,69 @@ public class HistoryView extends VBox {
             card.getStyleClass().add("ranking-card");
             return card;
         }).toList());
-        roundCards.getChildren().setAll(detail.rounds().stream().map(round -> {
-            Label number = new Label("V" + (round.index() + 1)); number.getStyleClass().add("round-number");
-            Label drawer = new Label(round.drawer()); drawer.getStyleClass().add("round-drawer");
-            Label word = new Label("Từ khóa: " + round.word()); word.getStyleClass().add("round-word");
-            VBox text = new VBox(2, drawer, word);
-            Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-            Label guesses = new Label(round.guesses().size() + " lượt đoán"); guesses.getStyleClass().add("round-count");
-            HBox card = new HBox(11, number, text, spacer, guesses);
-            card.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-            card.getStyleClass().add("round-card");
-            return card;
-        }).toList());
+        turnCards.clear();
+        roundCards.getChildren().setAll(HistoryData.stages(detail).stream().map(this::stageGroup).toList());
+    }
+
+    // Một vòng: tiêu đề (số vòng, chủ đề, số lượt) và các lượt của riêng vòng đó.
+    private VBox stageGroup(HistoryData.Stage stage) {
+        Label badge = new Label("Vòng " + (stage.index() + 1)); badge.getStyleClass().add("history-stage-badge");
+        badge.setMinWidth(Region.USE_PREF_SIZE);
+        Label topic = new Label(stage.topic() == null || stage.topic().isBlank() ? "Không rõ chủ đề" : stage.topic());
+        topic.getStyleClass().add("history-stage-topic");
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+        int guessCount = stage.rounds().stream().mapToInt(r -> r.guesses().size()).sum();
+        Label meta = new Label(stage.rounds().size() + " lượt • " + guessCount + " câu đoán");
+        meta.getStyleClass().add("history-stage-meta");
+        meta.setMinWidth(Region.USE_PREF_SIZE);
+        HBox header = new HBox(10, badge, topic, spacer, meta);
+        header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        header.getStyleClass().add("history-stage-header");
+        VBox turns = new VBox(8);
+        turns.getStyleClass().add("history-stage-turns");
+        for (HistoryData.Round round : stage.rounds()) { turns.getChildren().add(turnCard(stage, round)); }
+        VBox group = new VBox(8, header, turns);
+        group.getStyleClass().add("history-stage");
+        group.setAccessibleRole(javafx.scene.AccessibleRole.TEXT);
+        group.setAccessibleText(stage.label());
+        return group;
+    }
+
+    private HBox turnCard(HistoryData.Stage stage, HistoryData.Round round) {
+        Label number = new Label("L" + HistoryData.turnNumber(detail, round)); number.getStyleClass().add("round-number");
+        Label drawer = new Label(round.drawer()); drawer.getStyleClass().add("round-drawer");
+        Label word = new Label("Từ khóa: " + round.word()); word.getStyleClass().add("round-word");
+        VBox text = new VBox(2, drawer, word);
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label guesses = new Label(round.guesses().size() + " câu đoán"); guesses.getStyleClass().add("round-count");
+        HBox card = new HBox(11, number, text, spacer, guesses);
+        card.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        card.getStyleClass().add("round-card");
+        card.setCursor(javafx.scene.Cursor.HAND);
+        card.setOnMouseClicked(event -> {
+            stagePicker.setValue(stage);
+            rounds.setValue(round);
+        });
+        turnCards.put(round.index(), card);
+        return card;
+    }
+
+    private String turnTitle(HistoryData.Round round) {
+        HistoryData.Stage stage = detail == null ? null : HistoryData.stages(detail).stream()
+                .filter(s -> s.rounds().contains(round)).findFirst().orElse(null);
+        String number = "Lượt " + (detail == null ? round.index() + 1 : HistoryData.turnNumber(detail, round));
+        return stage == null ? number : stage.label() + "   •   " + number;
     }
 
     private void renderRound(HistoryData.Round round) {
-        roundInfo.setText("Vòng " + (round.index() + 1) + "   •   Người vẽ: " + round.drawer()
-                + "   •   Từ khóa: " + round.word());
+        roundInfo.setText(turnTitle(round) + "   •   Người vẽ: " + round.drawer() + "   •   Từ khóa: " + round.word());
         guessCards.getChildren().setAll(round.guesses().stream().map(guess -> {
             Label player = new Label(guess.username()); player.getStyleClass().add("guess-player");
             Label answer = new Label(guess.answer()); answer.getStyleClass().add("guess-answer");
             Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-            Label result = new Label(guess.correct() ? "✓ Đúng" : "Sai");
+            Label result = new Label(guess.correct() ? "Đúng" : "Sai");
             result.getStyleClass().addAll("guess-result", guess.correct() ? "guess-correct" : "guess-wrong");
+            if (guess.correct()) { Icons.attach(result, Icons.Glyph.CHECK, 12).setGraphicTextGap(4); }
             Label elapsed = new Label(String.format("%.2f giây", guess.elapsedSeconds()));
             elapsed.getStyleClass().add("guess-time");
             HBox card = new HBox(8, player, answer, spacer, elapsed, result);
@@ -206,7 +288,7 @@ public class HistoryView extends VBox {
             return card;
         }).toList());
         if (round.guesses().isEmpty()) {
-            Label empty = new Label("Chưa có lượt đoán trong vòng này.");
+            Label empty = new Label("Chưa có câu đoán nào trong lượt này.");
             empty.getStyleClass().add("subtle-text");
             guessCards.getChildren().setAll(empty);
         }
@@ -226,13 +308,14 @@ public class HistoryView extends VBox {
                     StringBuilder text=new StringBuilder("Trận: "+d.id()+"\nPhòng: "+d.roomId()+" | Chủ đề: "+d.category()+" | "+HistoryData.statusLabel(d.status())+"\nBắt đầu: "+time(d.startedAt())+"\nKết thúc: "+time(d.endedAt())+"\n\nKẾT QUẢ\n");
                     for(ScoreEntry p:d.players()) text.append("Hạng ").append(p.getRank()).append(" — ").append(p.getUsername()).append(" — ").append(p.getScore()).append(" điểm | TB đoán: ").append(Double.isFinite(p.getAverageGuessTime()) ? String.format("%.2f giây",p.getAverageGuessTime()) : "Chưa đoán đúng").append("\n");
                     for(HistoryData.Round r:d.rounds()) {
-                        text.append("\nVÒNG ").append(r.index()+1).append(" — Người vẽ: ").append(r.drawer()).append("\nTừ khóa: ").append(r.word()).append("\nẢnh trên server: ").append(r.imagePath()==null ? "Chưa gửi ảnh" : r.imagePath()).append("\nBắt đầu: ").append(time(r.startedAt())).append(" | Kết thúc: ").append(time(r.endedAt())).append("\n");
+                        text.append("\nVÒNG ").append(r.index()/Math.max(1,d.players().size())+1).append(" — LƯỢT ").append(HistoryData.turnNumber(d,r)).append(" — Người vẽ: ").append(r.drawer()).append("\nTừ khóa: ").append(r.word()).append("\nẢnh trên server: ").append(r.imagePath()==null ? "Chưa gửi ảnh" : r.imagePath()).append("\nBắt đầu: ").append(time(r.startedAt())).append(" | Kết thúc: ").append(time(r.endedAt())).append("\n");
                         for(HistoryData.Guess g:r.guesses()) text.append(time(g.at())).append(" | ").append(g.username()).append(": ").append(g.answer()).append(g.correct() ? " — Đúng" : " — Sai").append(String.format(" (%.2f giây)",g.elapsedSeconds())).append("\n");
                     }
+                    detail = d;
                     details.setText(text.toString()); renderOverview(d);
                     status.setText("Đã tải kết quả."); UiTheme.status(status,"success");
-                    rounds.getItems().setAll(d.rounds());
-                    rounds.getSelectionModel().selectFirst();
+                    stagePicker.getItems().setAll(HistoryData.stages(d));
+                    stagePicker.getSelectionModel().selectFirst();
                 }
             }
             case HISTORY_IMAGE -> {
@@ -244,7 +327,7 @@ public class HistoryView extends VBox {
                         Image image = new Image(new ByteArrayInputStream(png));
                         if (image.isError() || image.getWidth() != 500 || image.getHeight() != 500) { throw new IllegalArgumentException(); }
                         drawing.setImage(image);
-                        imageStatus.setText("Đã tải tranh của vòng " + (data.roundIndex() + 1) + ".");
+                        imageStatus.setText("Đã tải tranh: " + turnTitle(rounds.getValue()).replace("   •   ", ", ") + ".");
                     } catch (RuntimeException e) { imageStatus.setText("Ảnh không hợp lệ. Hãy thử tải lại."); }
                 }
             }

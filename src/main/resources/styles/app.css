@@ -92,7 +92,7 @@
     -fx-border-radius: 10px;
     -fx-border-width: 1px;
     -fx-padding: 10px 12px;
-    -fx-prompt-text-fill: #8b8b80;
+    -fx-prompt-text-fill: #716e66;
 }
 
 .text-field:focused,
@@ -170,6 +170,34 @@
     -fx-opacity: 0.52;
 }
 
+/* Chỉ hiện khi điều hướng bằng bàn phím (Tab), không hiện khi bấm chuột. */
+.button:focus-visible,
+.toggle-button:focus-visible,
+.hyperlink:focus-visible,
+.check-box:focus-visible > .box,
+.list-view:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+}
+
+/* B2: nút bật/tắt (Tẩy) phải nhìn rõ đang bật. */
+.tool-toggle {
+    -fx-background-color: #fff9df;
+    -fx-text-fill: #173f73;
+    -fx-border-color: #d8b55b;
+}
+
+.tool-toggle:hover {
+    -fx-background-color: #fff1b8;
+}
+
+.tool-toggle:selected {
+    -fx-background-color: linear-gradient(to right, #f8c537, #f59e0b);
+    -fx-text-fill: #132e58;
+    -fx-border-color: #b45309;
+    -fx-border-width: 2px;
+}
+
 .hyperlink {
     -fx-text-fill: #1d4ed8;
     -fx-font-weight: 700;
@@ -207,7 +235,7 @@
 
 .stat-caption {
     -fx-text-fill: #7b6a42;
-    -fx-font-size: 9px;
+    -fx-font-size: 11px;
     -fx-font-weight: 800;
 }
 
@@ -233,15 +261,15 @@
 }
 
 .room-description {
-    -fx-text-fill: #74717a;
-    -fx-font-size: 11px;
+    -fx-text-fill: #6b6874;
+    -fx-font-size: 12px;
 }
 
 .room-player-count,
 .room-status-badge {
     -fx-background-radius: 999px;
     -fx-padding: 6px 11px;
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -321,7 +349,7 @@
 }
 
 .player-state {
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 700;
 }
 
@@ -383,10 +411,33 @@
     -fx-font-weight: 800;
 }
 
+.timer-urgent {
+    -fx-background-color: #be123c;
+    -fx-text-fill: #fff1f2;
+}
+
 .game-word {
     -fx-text-fill: #1d4ed8;
     -fx-font-size: 18px;
     -fx-font-weight: 800;
+}
+
+.game-hint {
+    -fx-text-fill: #744400;
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 20px;
+    -fx-font-weight: 700;
+}
+
+.room-host {
+    -fx-text-fill: #9a6700;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.kick-button {
+    -fx-font-size: 12px;
+    -fx-padding: 6px 12px;
 }
 
 .canvas-frame {
@@ -448,8 +499,8 @@
 .ranking-meta,
 .round-word,
 .guess-time {
-    -fx-text-fill: #74717a;
-    -fx-font-size: 10px;
+    -fx-text-fill: #6b6874;
+    -fx-font-size: 12px;
 }
 
 .history-state,
@@ -457,7 +508,7 @@
 .history-rank {
     -fx-background-radius: 999px;
     -fx-padding: 5px 9px;
-    -fx-font-size: 10px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -529,7 +580,7 @@
 .guess-result {
     -fx-background-radius: 999px;
     -fx-padding: 4px 8px;
-    -fx-font-size: 10px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -555,7 +606,7 @@
     -fx-background-radius: 0 9px 0 9px;
     -fx-padding: 5px 9px;
     -fx-text-fill: #ffe8a3;
-    -fx-font-size: 10px;
+    -fx-font-size: 11px;
     -fx-font-weight: 700;
 }
 
@@ -574,7 +625,7 @@
 
 .avatar-name {
     -fx-text-fill: #9a6a08;
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
@@ -588,7 +639,7 @@
 
 .user-profile-text > .label:first-child {
     -fx-text-fill: #8a681f;
-    -fx-font-size: 8px;
+    -fx-font-size: 10px;
     -fx-font-weight: 800;
 }
 
@@ -643,7 +694,7 @@
     -fx-background-radius: 999px;
     -fx-padding: 4px 9px;
     -fx-text-fill: #102c5c;
-    -fx-font-size: 10px;
+    -fx-font-size: 11px;
     -fx-font-weight: 900;
 }
 
@@ -727,10 +778,815 @@
 
 .avatar-option-name {
     -fx-text-fill: #173f73;
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
 }
 
 .avatar-option:selected .avatar-option-name {
     -fx-text-fill: #fff7d1;
+}
+
+/* B14: ô chọn màu chỉ hiện ô màu, không hiện tên tiếng Anh ("Black"). */
+.drawing-color .color-picker-label {
+    -fx-content-display: graphic-only;
+}
+
+/* B8: phản hồi khi đoán. */
+.guess-row {
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-border-color: transparent;
+    -fx-border-width: 2px;
+    -fx-padding: 2px;
+}
+
+.guess-row-correct {
+    -fx-background-color: #eef6d5;
+    -fx-border-color: #65a30d;
+}
+
+.guess-row-wrong {
+    -fx-background-color: #ffe4e6;
+    -fx-border-color: #e11d48;
+}
+
+/* B4: bảng điểm trong trận. */
+.score-list .list-cell {
+    -fx-padding: 5px 6px;
+}
+
+.score-list .list-cell:selected:filled,
+.score-list .list-cell:hover:filled {
+    -fx-background-color: transparent;
+}
+
+.score-row {
+    -fx-padding: 5px 8px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-color: transparent;
+}
+
+.score-row-self {
+    -fx-background-color: #fff1b8;
+    -fx-border-color: #e9b949;
+}
+
+.score-position {
+    -fx-alignment: center;
+    -fx-background-color: #173f84;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #ffe08a;
+    -fx-font-weight: 900;
+    -fx-font-size: 12px;
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+}
+
+.score-name {
+    -fx-text-fill: #102c5c;
+    -fx-font-weight: 800;
+    -fx-font-size: 13px;
+}
+
+.score-points {
+    -fx-text-fill: #1d4f91;
+    -fx-font-weight: 800;
+}
+
+.score-badge {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.score-badge-solved { -fx-text-fill: #4d6812; }
+.score-badge-drawer { -fx-text-fill: #9a6700; }
+.score-badge-offline { -fx-text-fill: #be123c; }
+.score-badge-drawing { -fx-text-fill: #1d4f91; }
+.score-badge-guessing { -fx-text-fill: #1d4ed8; }
+
+/* B5: màn hình kết quả. */
+.result-panel {
+    -fx-background-color: linear-gradient(to bottom, #fffdf2, #fff3c4);
+    -fx-background-radius: 10px;
+    -fx-padding: 26px 20px 20px 20px;
+}
+
+.result-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #102c5c;
+}
+
+.result-winner {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #9a6700;
+    -fx-text-alignment: center;
+}
+
+.podium-name {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #102c5c;
+}
+
+.podium-score {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #1d4f91;
+}
+
+.podium-step {
+    -fx-background-radius: 12px 12px 0 0;
+    -fx-border-radius: 12px 12px 0 0;
+    -fx-border-width: 2px;
+}
+
+.podium-step-1 { -fx-background-color: linear-gradient(to bottom, #fde68a, #f59e0b); -fx-border-color: #b45309; }
+.podium-step-2 { -fx-background-color: linear-gradient(to bottom, #f1f5f9, #94a3b8); -fx-border-color: #64748b; }
+.podium-step-3 { -fx-background-color: linear-gradient(to bottom, #fed7aa, #c2703d); -fx-border-color: #9a4a1c; }
+
+.podium-rank {
+    -fx-font-size: 30px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #102c5c;
+}
+
+.result-other {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #173f73;
+}
+
+/* B18: dòng tóm tắt server ở màn hình đăng nhập / đăng ký. */
+.server-summary {
+    -fx-text-fill: #62657a;
+    -fx-font-size: 13px;
+}
+
+/* B15: trạng thái riêng của từng khối trong màn hình quản trị. */
+.card-status {
+    -fx-font-size: 13px;
+}
+
+/* F5: ô số phòng vẫn nhìn rõ khi dòng phòng đang được chọn (nền dòng cũng là xanh đậm). */
+.list-cell:selected .room-number {
+    -fx-background-color: #ffe08a;
+    -fx-text-fill: #173f84;
+}
+
+/* F8: vùng bấm tối thiểu ~24px trở lên (WCAG 2.5.8) cho các điều khiển nhỏ. */
+.hyperlink {
+    -fx-padding: 4px 6px;
+}
+
+.check-box {
+    -fx-padding: 6px 4px;
+}
+
+.check-box > .box {
+    -fx-padding: 4px;
+}
+
+.drawing-color {
+    -fx-min-height: 34px;
+    -fx-pref-height: 34px;
+}
+
+.slider {
+    -fx-padding: 8px 0;
+}
+
+.slider > .thumb {
+    -fx-padding: 9px;
+}
+
+/* F1: thanh tiêu đề và thanh công cụ của màn hình game gọn hơn để vừa cửa sổ laptop (1280x721). */
+.game-header {
+    -fx-padding: 10px 18px;
+}
+
+.game-header .game-hint {
+    -fx-font-size: 18px;
+}
+
+.toolbar {
+    -fx-padding: 6px 10px;
+}
+
+.toolbar .button,
+.toolbar .toggle-button {
+    -fx-padding: 6px 14px;
+}
+
+/* F9–F12: form có nhãn nối với ô, lỗi ngay dưới ô, nút hiện/ẩn mật khẩu. */
+.text-field:invalid,
+.password-field:invalid {
+    -fx-border-color: #be123c;
+    -fx-border-width: 1.5px;
+    -fx-background-color: #fff7f8;
+}
+
+.text-field:invalid:focused,
+.password-field:invalid:focused {
+    -fx-effect: dropshadow(gaussian, rgba(190, 18, 60, 0.22), 9, 0.2, 0, 0);
+}
+
+.field-error {
+    -fx-text-fill: #be123c;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.password-field.password-input {
+    -fx-padding: 10px 46px 10px 12px;
+}
+
+.password-toggle {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-border-color: transparent;
+    -fx-padding: 6px;
+    -fx-min-width: 34px;
+    -fx-min-height: 34px;
+    -fx-text-fill: #4b5563;
+}
+
+.password-toggle:hover,
+.password-toggle:selected {
+    -fx-background-color: rgba(29, 78, 216, 0.10);
+    -fx-text-fill: #1d4ed8;
+}
+
+.password-toggle:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
+}
+
+/* Báo cáo tranh trong phiên đoán. */
+.report-bar {
+    -fx-spacing: 10px;
+}
+
+.report-status {
+    -fx-text-fill: #4b5563;
+    -fx-font-size: 12px;
+}
+
+.report-status.report-rejected {
+    -fx-text-fill: #be123c;
+    -fx-font-weight: 700;
+}
+
+/* Danh sách người đang online để mời vào phòng. */
+.online-panel {
+    -fx-padding: 4px;
+}
+
+.online-name {
+    -fx-text-fill: #173f73;
+    -fx-font-weight: 700;
+}
+
+.online-state {
+    -fx-font-size: 12px;
+}
+
+.online-free { -fx-text-fill: #4d6812; }
+.online-busy { -fx-text-fill: #62657a; }
+
+.invite-button {
+    -fx-padding: 6px 12px;
+    -fx-font-size: 12px;
+}
+
+/* Hộp thoại theo chủ đề: thẻ kem viền vàng trên cửa sổ trong suốt; lề 30px chứa bóng đổ của thẻ.
+   Bóng đậm và rộng hơn bóng của các thẻ (28px, lệch 9px) vì hộp thoại nằm trên cùng. */
+.dialog-pane.themed-dialog {
+    -fx-background-color: rgba(255, 249, 224, 0.99);
+    -fx-background-insets: 30px;
+    -fx-background-radius: 20px;
+    -fx-border-color: #d6a93d;
+    -fx-border-insets: 30px;
+    -fx-border-radius: 20px;
+    -fx-border-width: 1px;
+    /* Viền lùi vào 30px đã đẩy nội dung vào trong thẻ, nên không cần thêm padding. */
+    -fx-padding: 0;
+    -fx-pref-width: 524px;
+    -fx-effect: dropshadow(gaussian, rgba(2, 10, 32, 0.6), 32, 0.24, 0, 10);
+}
+
+/* Lớp tối phủ lên màn hình phía sau khi hộp thoại chặn thao tác đang mở. */
+.dialog-scrim {
+    -fx-background-color: rgba(2, 10, 30, 0.45);
+}
+
+/* Dải trời đêm ở đầu thẻ: không còn thanh tiêu đề của hệ điều hành nên kéo dải này để di chuyển hộp thoại. */
+.themed-dialog .dialog-sky-layer {
+    -fx-cursor: move;
+}
+
+/* Bo góc trên khớp với góc trong của viền thẻ (20px trừ viền 1px). */
+.dialog-sky {
+    -fx-background-radius: 19px 19px 0 0;
+}
+
+.dialog-info .dialog-sky {
+    -fx-background-color:
+        linear-gradient(to bottom right, #0b2a63 0%, #1d4f91 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 42px 20px, radius 5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 112px 55px, radius 3.5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 166px 17px, radius 2.5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 291px 24px, radius 3px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 360px 58px, radius 4px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 420px 19px, radius 5.5px, #ffe08a 0%, #ffe08a 45%, rgba(255, 224, 138, 0) 100%);
+}
+
+.dialog-warning .dialog-sky {
+    -fx-background-color:
+        linear-gradient(to bottom right, #7c2d12 0%, #c2620a 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 42px 20px, radius 5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 112px 55px, radius 3.5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 166px 17px, radius 2.5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 291px 24px, radius 3px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 360px 58px, radius 4px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 420px 19px, radius 5.5px, #fff3c4 0%, #fff3c4 45%, rgba(255, 243, 196, 0) 100%);
+}
+
+.dialog-danger .dialog-sky {
+    -fx-background-color:
+        linear-gradient(to bottom right, #6b0f2a 0%, #be123c 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 42px 20px, radius 5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 112px 55px, radius 3.5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 166px 17px, radius 2.5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 291px 24px, radius 3px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 360px 58px, radius 4px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%),
+        radial-gradient(focus-angle 0deg, focus-distance 0%, center 420px 19px, radius 5.5px, #ffe4e6 0%, #ffe4e6 45%, rgba(255, 228, 230, 0) 100%);
+}
+
+/* Nét xoáy kiểu "Đêm đầy sao", mờ để không tranh chỗ với nội dung. */
+.dialog-swirl {
+    -fx-stroke: rgba(255, 255, 255, 0.22);
+    -fx-stroke-width: 2.5px;
+    -fx-stroke-line-cap: round;
+}
+
+.dialog-hero {
+    -fx-padding: 0 0 4px 0;
+}
+
+/* Đếm ngược / tiến trình căn giữa dưới nội dung. */
+.themed-dialog > .dialog-body {
+    -fx-padding: 8px 44px 0 44px;
+    -fx-alignment: center;
+}
+
+.themed-dialog > .online-panel {
+    -fx-padding: 6px 24px 4px 24px;
+}
+
+.themed-dialog > .button-bar > .container {
+    -fx-padding: 16px 28px 26px 28px;
+    -fx-alignment: center;
+}
+
+/* Nút cao 44px cho dễ bấm, rộng đều nhau. */
+.themed-dialog .button,
+.reconnect-card .button {
+    -fx-min-width: 132px;
+    -fx-min-height: 44px;
+    -fx-font-size: 14px;
+}
+
+/* Viền nút phụ đậm hơn (3.4:1 so với nền thẻ) để "Hủy / Ở lại" vẫn trông như một nút. */
+.themed-dialog .ghost-button {
+    -fx-border-color: #a8802a;
+}
+
+/* Huy hiệu tròn đặc màu, viền kem trùng màu thân thẻ để trông như "khoét" vào dải trời, có quầng sáng nhẹ. */
+.dialog-badge {
+    -fx-alignment: center;
+    -fx-background-radius: 999px;
+    -fx-border-radius: 999px;
+    -fx-border-width: 4px;
+    -fx-border-color: #fff9e0;
+}
+
+.dialog-info .dialog-badge {
+    -fx-background-color: radial-gradient(center 35% 30%, radius 75%, #2563aa 0%, #173f84 100%);
+    -fx-text-fill: #ffe08a;
+    -fx-effect: dropshadow(gaussian, rgba(250, 204, 21, 0.55), 16, 0.2, 0, 2);
+}
+
+.dialog-warning .dialog-badge {
+    -fx-background-color: radial-gradient(center 35% 30%, radius 75%, #c2620a 0%, #b45309 100%);
+    -fx-text-fill: #fff7d1;
+    -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.5), 16, 0.2, 0, 2);
+}
+
+.dialog-danger .dialog-badge {
+    -fx-background-color: radial-gradient(center 35% 30%, radius 75%, #e11d48 0%, #be123c 100%);
+    -fx-text-fill: #ffffff;
+    -fx-effect: dropshadow(gaussian, rgba(225, 29, 72, 0.45), 16, 0.2, 0, 2);
+}
+
+.dialog-title {
+    -fx-font-family: "Segoe UI Semibold", "Segoe UI";
+    -fx-font-size: 20px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #102c5c;
+}
+
+.dialog-message {
+    -fx-font-size: 14px;
+    -fx-text-fill: #3f4663;
+    -fx-line-spacing: 3px;
+}
+
+/* Nút xác nhận thao tác nguy hiểm trong hộp thoại: đỏ đặc để khác hẳn nút "Ở lại / Hủy". */
+.themed-dialog .danger-button {
+    -fx-background-color: #be123c;
+    -fx-border-color: #9f1239;
+    -fx-text-fill: #fff7f8;
+}
+
+.themed-dialog .danger-button:hover {
+    -fx-background-color: #9f1239;
+}
+
+/* Hai quy tắc trên đè màu viền của nút, nên khai báo lại viền focus khi dùng bàn phím. */
+.themed-dialog .button:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+}
+
+.dialog-countdown {
+    -fx-pref-height: 8px;
+}
+
+/* Rãnh có viền 3.4:1 so với nền thẻ; phần còn lại đậm hơn rãnh ít nhất 3.9:1. */
+.dialog-countdown > .track {
+    -fx-background-color: #fbf1cf;
+    -fx-background-radius: 999px;
+    -fx-background-insets: 0;
+    -fx-border-color: #a8802a;
+    -fx-border-radius: 999px;
+    -fx-border-width: 1px;
+}
+
+.dialog-countdown > .bar {
+    -fx-background-color: linear-gradient(to right, #b45309, #a16207);
+    -fx-background-radius: 999px;
+    -fx-background-insets: 0;
+    -fx-padding: 4px;
+}
+
+.dialog-countdown-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: #62657a;
+}
+
+/* Mất kết nối: phủ tối màn hình đang chơi và hiện thẻ "đang kết nối lại" giữa màn hình. */
+.reconnect-overlay {
+    -fx-background-color: rgba(2, 10, 30, 0.55);
+    -fx-padding: 24px;
+}
+
+.reconnect-card {
+    -fx-background-color: rgba(255, 249, 224, 0.99);
+    -fx-background-radius: 20px;
+    -fx-border-color: #d6a93d;
+    -fx-border-radius: 20px;
+    -fx-padding: 0 0 24px 0;
+    -fx-effect: dropshadow(gaussian, rgba(2, 10, 32, 0.6), 32, 0.24, 0, 10);
+}
+
+.reconnect-card .ghost-button {
+    -fx-border-color: #a8802a;
+}
+
+.reconnect-card .progress-indicator {
+    -fx-progress-color: #a16207;
+}
+
+/* Nút nhỏ trong thẻ thống kê (ví dụ "Xem danh sách" người đang online). */
+.stat-action {
+    -fx-padding: 6px 12px;
+    -fx-font-size: 12px;
+}
+
+/* Đếm ngược khi cả phòng đã sẵn sàng: thanh xanh đêm viền vàng nổi bật trên thẻ phòng chờ. */
+.start-countdown {
+    -fx-background-color: linear-gradient(to right, #173f84, #1d4f91);
+    -fx-background-radius: 16px;
+    -fx-border-color: #eab308;
+    -fx-border-radius: 16px;
+    -fx-padding: 10px 16px 10px 12px;
+}
+
+.start-countdown-number {
+    -fx-min-width: 52px;
+    -fx-min-height: 52px;
+    -fx-max-width: 52px;
+    -fx-max-height: 52px;
+    -fx-alignment: center;
+    -fx-background-color: #ffe08a;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #102c5c;
+    -fx-font-size: 26px;
+    -fx-font-weight: 800;
+}
+
+.start-countdown-title {
+    -fx-text-fill: #fff7d1;
+    -fx-font-size: 17px;
+    -fx-font-weight: 800;
+}
+
+.start-countdown-hint {
+    -fx-text-fill: #dbe7ff;
+    -fx-font-size: 13px;
+}
+
+/* Khung trò chuyện bên trái ô vẽ. */
+.chat-panel {
+    -fx-spacing: 10px;
+}
+
+.chat-list {
+    -fx-background-color: #fffdf5;
+    -fx-background-radius: 14px;
+    -fx-border-color: #ead9a6;
+    -fx-border-radius: 14px;
+    -fx-padding: 6px;
+}
+
+.chat-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 3px 2px;
+}
+
+.chat-bubble {
+    -fx-background-radius: 14px;
+    -fx-padding: 6px 11px 7px 11px;
+}
+
+.chat-theirs {
+    -fx-background-color: #eef4ff;
+    -fx-border-color: #c9d9f5;
+    -fx-background-radius: 4px 14px 14px 14px;
+    -fx-border-radius: 4px 14px 14px 14px;
+}
+
+.chat-mine {
+    -fx-background-color: #ffe9a8;
+    -fx-border-color: #e8c25a;
+    -fx-background-radius: 14px 4px 14px 14px;
+    -fx-border-radius: 14px 4px 14px 14px;
+}
+
+.chat-name {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #173f84;
+}
+
+.chat-mine .chat-name {
+    -fx-text-fill: #7a4a00;
+}
+
+.chat-text {
+    -fx-font-size: 13px;
+    -fx-text-fill: #1f2a44;
+}
+
+.chat-notice {
+    -fx-background-color: #fff1f2;
+    -fx-text-fill: #be123c;
+    -fx-background-radius: 10px;
+    -fx-padding: 6px 10px;
+    -fx-font-size: 12px;
+}
+
+.chat-send {
+    -fx-min-width: 44px;
+    -fx-padding: 8px 12px;
+}
+
+/* Hai thẻ "Bảng điểm / Trò chuyện" khi cửa sổ hẹp. */
+.side-tabs {
+    -fx-background-color: #f3e3b0;
+    -fx-background-radius: 999px;
+    -fx-padding: 3px;
+}
+
+.side-tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #173f73;
+    -fx-font-weight: 700;
+    -fx-padding: 6px 10px;
+}
+
+.side-tab:selected {
+    -fx-background-color: #173f84;
+    -fx-text-fill: #fff7d1;
+}
+
+.side-tab:focus-visible {
+    -fx-border-color: #1d4ed8;
+    -fx-border-width: 2px;
+    -fx-border-radius: 999px;
+}
+
+/* "2/3 người muốn chơi lại" trên màn kết quả. */
+.rematch-status {
+    -fx-background-color: #173f84;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #ffe08a;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-padding: 6px 14px;
+    -fx-graphic-text-gap: 8px;
+}
+
+/* Vòng đấu ở phòng chờ: mỗi vòng một chủ đề, chủ phòng chọn. */
+.stage-panel {
+    -fx-background-color: rgba(255, 253, 243, 0.78);
+    -fx-background-radius: 14px;
+    -fx-border-color: #dec477;
+    -fx-border-radius: 14px;
+    -fx-padding: 16px;
+}
+
+.stage-summary {
+    -fx-background-color: #173f84;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #fff7d1;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-padding: 3px 10px;
+}
+
+.stage-scroll,
+.stage-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.stage-row {
+    -fx-background-color: #fff9df;
+    -fx-background-radius: 12px;
+    -fx-border-color: #e6cf86;
+    -fx-border-radius: 12px;
+    -fx-padding: 6px 8px;
+}
+
+.stage-row-locked {
+    -fx-padding: 9px 12px 9px 8px;
+}
+
+.stage-number {
+    -fx-min-width: 30px;
+    -fx-min-height: 30px;
+    -fx-max-width: 30px;
+    -fx-max-height: 30px;
+    -fx-alignment: center;
+    -fx-background-color: #ffe08a;
+    -fx-background-radius: 999px;
+    -fx-border-color: #d89200;
+    -fx-border-radius: 999px;
+    -fx-text-fill: #173f84;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+}
+
+.stage-row .combo-box {
+    -fx-padding: 4px 6px;
+}
+
+.stage-topic {
+    -fx-text-fill: #173f73;
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+}
+
+.stage-random {
+    -fx-text-fill: #62657a;
+    -fx-font-style: italic;
+}
+
+.stage-remove {
+    -fx-min-width: 40px;
+    -fx-min-height: 40px;
+    -fx-padding: 0;
+}
+
+/* Chat ở phòng chờ: thu gọn chỉ hiện tin mới nhất, bấm biểu tượng để mở toàn bộ. */
+.chat-dock,
+.chat-dock-panel {
+    -fx-background-color: rgba(255, 253, 243, 0.92);
+    -fx-background-radius: 14px;
+    -fx-border-color: #dec477;
+    -fx-border-radius: 14px;
+}
+
+.chat-dock {
+    -fx-padding: 10px 14px 10px 10px;
+}
+
+.chat-dock:hover {
+    -fx-background-color: #fff6d6;
+}
+
+.chat-dock-panel {
+    -fx-padding: 14px;
+}
+
+.chat-dock-toggle {
+    -fx-min-width: 44px;
+    -fx-min-height: 44px;
+    -fx-max-width: 44px;
+    -fx-max-height: 44px;
+    -fx-padding: 0;
+    -fx-background-color: #1d4f91;
+    -fx-background-radius: 999px;
+    -fx-border-color: #163d74;
+    -fx-border-radius: 999px;
+    -fx-text-fill: #fff7d1;
+}
+
+.chat-dock-toggle:hover {
+    -fx-background-color: #2563aa;
+}
+
+.chat-dock-badge {
+    -fx-background-color: #be123c;
+    -fx-background-radius: 999px;
+    -fx-text-fill: white;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+    -fx-padding: 1px 6px;
+    -fx-translate-x: 4px;
+    -fx-translate-y: -4px;
+}
+
+.chat-dock-name {
+    -fx-text-fill: #173f84;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.chat-dock-text {
+    -fx-text-fill: #1f2a44;
+    -fx-font-size: 13px;
+}
+
+.chat-dock-text.chat-dock-empty {
+    -fx-text-fill: #62657a;
+    -fx-wrap-text: true;
+}
+/* Lịch sử trận: các lượt được nhóm theo vòng đấu (chủ đề). */
+.history-stage {
+    -fx-background-color: rgba(255, 253, 243, 0.7);
+    -fx-background-radius: 14px;
+    -fx-border-color: #e6cf86;
+    -fx-border-radius: 14px;
+    -fx-padding: 10px;
+}
+
+.history-stage-badge {
+    -fx-background-color: #173f84;
+    -fx-background-radius: 999px;
+    -fx-text-fill: #fff7d1;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-padding: 3px 10px;
+}
+
+.history-stage-topic {
+    -fx-text-fill: #173f73;
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+}
+
+.history-stage-meta {
+    -fx-text-fill: #62657a;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.round-card:hover {
+    -fx-background-color: #fff1b8;
+}
+
+.round-card-selected,
+.round-card-selected:hover {
+    -fx-background-color: #ffe9a8;
+    -fx-border-color: #1d4f91;
+    -fx-border-width: 2px;
+    -fx-padding: 8px 10px;
 }

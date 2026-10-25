@@ -56,9 +56,28 @@ class AdminHistoryViewTest {
             ListView<?> words=(ListView<?>)view.lookupAll(".list-view").stream().filter(n->((ListView<?>)n).getItems().stream().anyMatch(Word.class::isInstance)).findFirst().orElseThrow();
             assertEquals(1,words.getItems().size());
             TextField name=(TextField)view.lookupAll(".text-field").stream().filter(n->n instanceof TextField t && t.getPromptText().startsWith("Từ khóa")).findFirst().orElseThrow(); name.setText("Con chó");
-            Parent box=name.getParent(); Button add=(Button)box.lookupAll(".button").stream().filter(n->((Button)n).getText().equals("Thêm")).findFirst().orElseThrow(); add.fire();
+            Parent box=name.getParent().getParent(); Button add=(Button)box.lookupAll(".button").stream().filter(n->((Button)n).getText().equals("Thêm")).findFirst().orElseThrow(); add.fire();
             CatalogData.Edit edit=assertInstanceOf(CatalogData.Edit.class,sent.getLast().getData()); assertEquals("WORD",edit.entity()); assertEquals("Con chó",edit.name()); assertEquals(1,edit.categoryId());
             view.handleMessage(new Message(MessageType.CATALOG_FAILED,"DUPLICATE_OR_INVALID_REFERENCE")); assertFalse(view.isDisabled()); snapshot(view,"admin.png");
+        });
+    }
+    @Test void changingDifficultyDoesNotResizeTheColumns() throws Exception {
+        ui(()-> {
+            AdminView view=new AdminView(new UserInfo(1,"admin","ADMIN"),ignored->{},()->{});
+            var stage=new javafx.stage.Stage(); stage.setOpacity(0); stage.setScene(new Scene(view,1280,800)); stage.show();
+            view.handleMessage(new Message(MessageType.CATALOG,new Catalog(List.of(new Category(1,"Động vật","")),List.of())));
+            @SuppressWarnings("unchecked") ComboBox<String> difficulty=(ComboBox<String>)view.lookup(".combo-box");
+            List<javafx.scene.Node> cards=List.copyOf(view.lookupAll(".sidebar-card"));
+            List<String> layouts=new ArrayList<>();
+            for(String value:List.of("EASY","MEDIUM","HARD","EASY","MEDIUM")) {
+                // Giống người dùng: mở danh sách xổ xuống, chọn mục rồi đóng lại.
+                difficulty.show(); difficulty.getSelectionModel().select(value); difficulty.hide();
+                view.applyCss(); view.layout();
+                layouts.add(cards.stream().map(c->Math.round(c.getLayoutX())+"/"+Math.round(c.getLayoutBounds().getWidth())).toList().toString());
+            }
+            assertEquals(1,layouts.stream().distinct().count(),"Đổi độ khó không được làm hai khung đổi kích thước: "+layouts);
+            assertTrue(cards.getFirst().getLayoutX()>=0,"Khung chủ đề không được tràn sang trái: "+layouts);
+            snapshot(view,"admin-difficulty.png");
         });
     }
     @Test void historySelectionLoadsAndDisplaysRoundAndGuessDetails() throws Exception {
@@ -117,7 +136,7 @@ class AdminHistoryViewTest {
             assertEquals("7", ((Label) roomList.lookup("#online-user-count")).getText());
             snapshot(page(roomList), "rooms.png");
 
-            LobbyView lobby = new LobbyView(1, ()->{}, ()->{}, ()->{});
+            LobbyView lobby = new LobbyView(1, ()->{}, ()->{}, ()->{}, ignored->{});
             lobby.update(new RoomInfo(2, RoomStatus.READY_CHECK, List.of(
                     new PlayerInfo(1, "người_chơi", true, true, "irises"),
                     new PlayerInfo(2, "bạn_chơi", false, true, "almond-blossoms"),

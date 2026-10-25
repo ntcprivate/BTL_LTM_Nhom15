@@ -40,6 +40,7 @@ public final class AnimatedStarryBackdrop extends StackPane {
     private double currentX;
     private double currentY;
     private long lastFrame;
+    private boolean paused;
 
     public AnimatedStarryBackdrop(Region host) {
         URL resource = Objects.requireNonNull(
@@ -110,14 +111,41 @@ public final class AnimatedStarryBackdrop extends StackPane {
             return;
         }
         window.showingProperty().addListener((observable, wasShowing, isShowing) -> {
-            if (isShowing) {
+            if (isShowing && !paused) {
                 lastFrame = 0;
                 animation.start();
             } else {
                 animation.stop();
             }
         });
-        if (window.isShowing()) {
+        if (window.isShowing() && !paused) {
+            lastFrame = 0;
+            animation.start();
+        }
+    }
+
+    // Theo dõi màn hình đang hiển thị trong content:
+    // - Màn hình game: dừng nền động, không cache (canvas thay đổi liên tục).
+    // - Màn hình khác: cache cả khung nội dung thành ảnh, để nền động chạy phía sau
+    //   không bắt GPU tính lại bóng đổ và chữ của khung ở mỗi khung hình.
+    public void followContent(javafx.scene.layout.StackPane content) {
+        Runnable update = () -> {
+            boolean playing = content.getChildren().stream().anyMatch(GameView.class::isInstance);
+            setPaused(playing);
+            content.setCache(!playing);
+            content.setCacheHint(javafx.scene.CacheHint.QUALITY);
+        };
+        content.getChildren().addListener((javafx.collections.ListChangeListener<javafx.scene.Node>) change -> update.run());
+        update.run();
+    }
+
+    // Tạm dừng hiệu ứng (giữ nguyên khung hình cuối) khi đang chơi để giảm tải CPU.
+    public void setPaused(boolean value) {
+        if (paused == value) { return; }
+        paused = value;
+        if (paused) {
+            animation.stop();
+        } else if (getScene() != null && getScene().getWindow() != null && getScene().getWindow().isShowing()) {
             lastFrame = 0;
             animation.start();
         }

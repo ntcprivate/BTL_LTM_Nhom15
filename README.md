@@ -8,6 +8,32 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
 - Trang chủ sau đăng nhập với lối tắt vào phòng, lịch sử và hồ sơ.
 - Chọn avatar từ 9 tranh Van Gogh; avatar được lưu theo tài khoản và hiển thị trong phòng chờ.
 - Vào phòng, chọn chủ đề, sẵn sàng, vẽ và đoán từ, tính điểm và xếp hạng.
+- Người vào phòng đầu tiên là chủ phòng và có thể mời người khác ra; người bị mời ra vẫn tự vào lại hoặc được mời lại vào phòng. Người chưa sẵn sàng không bị tự động đưa ra; chỉ chủ phòng mới mời người khác ra được.
+- Khi mọi người trong phòng đã sẵn sàng, phòng chờ **đếm ngược 5 giây** rồi mới vào trận. Trong lúc đếm, ai bấm **Tôi chưa sẵn sàng!** thì trận không bắt đầu và cả phòng thấy tên người đó; khi mọi người sẵn sàng lại thì đếm lại từ đầu. Có người rời phòng giữa lúc đếm thì những người còn lại được đếm lại.
+- Trong phòng chờ, nút **Mời người chơi** hiện danh sách người đang online (đang rảnh / đang ở phòng nào / đang chơi). Ai trong phòng cũng mời được người đang rảnh; người được mời thấy hộp thoại **Vào phòng / Từ chối** (tự hết hạn sau 30 giây). Mỗi người chỉ mời lại cùng một người sau 10 giây.
+- Ở màn hình chọn phòng, nút **Xem danh sách** trong thẻ "Người đang online" cho xem ai đang online và đang ở đâu (chỉ xem, muốn mời thì vào phòng trước).
+- **Mất kết nối giữa trận** (rớt mạng, tắt game): client tự kết nối lại 5 lần, mỗi lần cách 2 giây, rồi đưa người chơi về đúng trận đang chơi với từ khóa, thời gian, gợi ý và điểm hiện tại. Nếu tắt hẳn game thì đăng nhập lại là tự vào lại trận, hoặc nhấp đúp vào phòng đang chơi của mình. Người chủ động bấm **Rời phòng** hoặc **Đăng xuất** khi đang chơi thì không vào lại được trận đó.
+- **Vòng đấu**:
+  - Ở phòng chờ, chủ phòng chọn 1–5 vòng. Mỗi vòng là một chủ đề, hoặc để "Ngẫu nhiên"; vòng ngẫu nhiên tránh chủ đề đã có ở vòng khác.
+  - Người khác chỉ xem được. Không đổi được trong lúc đếm ngược hay đang chơi.
+  - Mỗi vòng, cả phòng vẽ một từ của chủ đề đó, rồi đoán lần lượt tranh của nhau. Điểm cộng dồn qua các vòng.
+  - Lịch sử trận lưu tên tất cả các chủ đề và tranh của từng vòng.
+- **Chat ở phòng chờ**:
+  - Khi thu gọn, khung chat chỉ hiện tin nhắn mới nhất và số tin chưa đọc.
+  - Bấm biểu tượng chat để mở toàn bộ đoạn chat. Đoạn chat chiếm cả cột bên phải và có nút "Thu gọn".
+  - Tin nhắn ở phòng chờ được chuyển sang khung chat của màn chơi.
+- **Giữ tranh khi mất kết nối lúc đang vẽ**:
+  - Trong lúc vẽ, client gửi bản nháp tranh lên server mỗi 2 giây, nhưng chỉ khi có nét mới.
+  - Người vào lại kịp sẽ thấy tranh dở và vẽ tiếp được.
+  - Người không quay lại thì đến lượt đoán, cả phòng xem tranh cuối cùng của họ thay vì tranh trắng.
+- Khi vẽ có nút **Hoàn tác** (Ctrl+Z) để bỏ nét vẽ gần nhất hoặc khôi phục tranh vừa bị xóa (tối đa 20 bước).
+- Khi đoán, người chơi thấy gợi ý số chữ cái dạng `_ _ _   _ _ _`; sau 15 giây server mở thêm một chữ cái ngẫu nhiên.
+- Trong phiên đoán có nút **Báo cáo tranh** (khi tranh không đúng từ khóa, ví dụ viết chữ lên tranh). Khi **quá nửa** số người đoán đang online cùng báo cáo, người vẽ mất số điểm đã nhận ở vòng đó và không được cộng thêm; người đoán vẫn giữ điểm. Có thể báo cáo cả trong 3 giây công bố đáp án.
+  - Người đã đoán đúng thì không báo cáo được nữa.
+  - Người đã báo cáo thì không đoán tiếp tranh đó. Lượt kết thúc sớm khi mọi người đoán đều đã đoán đúng, hết 3 lần đoán, hoặc đã báo cáo.
+- **Điểm theo tốc độ**: đoán đúng trong 10 giây đầu được 3 điểm, 10 giây tiếp theo 2 điểm, sau đó 1 điểm; người đoán đúng đầu tiên được thêm 1 điểm; người vẽ được 1 điểm cho mỗi người đoán đúng.
+- **Trò chuyện** trong trận: khung chat bên trái ô vẽ (cửa sổ hẹp thì nằm trong thẻ "Trò chuyện" cạnh bảng điểm). Server chặn tin nhắn để lộ từ khóa chưa công bố (kể cả viết không dấu hoặc viết liền) và chặn gửi quá dồn dập.
+- **Chơi lại**: màn kết quả có nút **Chơi lại** (về phòng chờ và tự báo sẵn sàng) và dòng "2/3 người muốn chơi lại • Đang chờ: …". Cả phòng cùng bấm thì đếm ngược 5 giây rồi vào ván mới.
 - Lịch sử trận: thời gian, người tham gia, điểm, thứ hạng, từng vòng và các lượt đoán.
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.
 - ADMIN thêm, sửa, xóa chủ đề và từ khóa.
@@ -115,6 +141,16 @@ mvn javafx:run
 3. Mở thêm terminal, chạy client thứ hai bằng cùng lệnh. Đăng nhập hai tài khoản USER khác nhau, vào cùng phòng, chọn chủ đề và cả hai bấm sẵn sàng. Chủ đề cần đủ từ khác nhau cho số người tham gia.
 
 ADMIN đăng nhập sẽ mở màn hình quản trị. USER đăng nhập sẽ vào trang chủ. Tại đây có thể vào danh sách phòng, mở lịch sử trận hoặc chọn “Hồ sơ & avatar”. Chọn một tranh, bấm **Lưu avatar**, rồi vào phòng để thấy avatar của mình và những người chơi khác.
+
+## Chạy thử không cần MySQL
+
+Server chạy thử lưu tài khoản, từ khóa và lịch sử trong bộ nhớ, không cần MySQL hay `config/db.properties`. Dữ liệu mất khi tắt server.
+
+```powershell
+mvn -q compile exec:java "-Dexec.mainClass=com.nhom15.drawguess.server.demo.DemoServerMain"
+```
+
+Mở thêm terminal và chạy `mvn javafx:run` cho mỗi người chơi. Tài khoản có sẵn: `demo1`–`demo4` (mật khẩu `123`) và `admin` (mật khẩu `admin`). Có 3 chủ đề mẫu, mỗi chủ đề 10 từ, đủ cho phòng 8 người. Chỉ chạy một server tại một thời điểm vì cả hai cùng dùng cổng 5555.
 
 ## Chơi trên hai máy trong LAN
 
