@@ -277,7 +277,7 @@ class GameManagerTest {
     @Test
     void noPlayableCategoryLeavesRoomWaitingAndReportsError() throws Exception {
         WordDAO dao = new WordDAO() {
-            @Override public GamePlan selectWords(int playerCount) { return null; }
+            @Override protected Map<String, List<String>> loadTopics() { return Map.of("Ít từ", List.of("Một", "Hai")); }
         };
         try (GameManager game = new GameManager(dao, new DrawingStore(directory), System::nanoTime, false, new com.nhom15.drawguess.server.dao.HistoryDAO() { @Override public void save(HistoryData.Detail d) {} })) {
             RoomManager rooms = new RoomManager(game, System::nanoTime, RoomManager.StartTimer.IMMEDIATE);
@@ -517,6 +517,67 @@ class GameManagerTest {
         }
     }
 
+    @Test
+    void matchPlaysEveryStageInOrderAndKeepsScoresAcrossStages() throws Exception {
+        try (Fixture f = new Fixture(List.of(
+                new GamePlan("Động vật", List.of("Con mèo", "Con chó", "Con voi", "Con hổ")),
+                new GamePlan("Đồ ăn", List.of("Bánh mì", "Phở", "Cơm tấm", "Bún chả"))))) {
+            assertEquals(0, f.prompt(1).getStage());
+            assertEquals(2, f.prompt(1).getStageCount());
+            assertEquals(4, f.saved.getLast().rounds().size(), "Lịch sử chưa có từ khóa của vòng chưa chơi");
+            f.startGuessing();
+            f.guess(2, "Con mèo", 5); // +4
+            for (int turn = 0; turn < 4; turn++) { f.advance(30); f.advance(3); }
+            assertEquals(4, f.score(2));
+            assertEquals(0, f.finished.get(), "Chưa kết thúc sau vòng đầu");
+
+            DrawingPrompt second = f.prompt(2);
+            assertEquals(1, second.getStage());
+            assertEquals("Đồ ăn", second.getCategory());
+            assertEquals("Phở", second.getWord());
+            assertEquals(60, second.getSeconds());
+            assertFalse(f.game.revealsWord(1, "con hổ"), "Từ của vòng trước đã công bố");
+            assertTrue(f.game.revealsWord(1, "phở"), "Từ của vòng đang vẽ vẫn bí mật");
+
+            f.startGuessing();
+            RoundInfo round = f.round();
+            assertEquals(4, round.getRoundIndex(), "Lượt đếm tiếp trên cả trận");
+            assertEquals(8, round.getTotalRounds());
+            assertEquals(1, round.getStage());
+            assertEquals("Đồ ăn", round.getCategory());
+            f.guess(3, "Bánh mì", 5);
+            assertTrue(f.guessResult(3).isCorrect());
+            assertEquals(4, f.score(2), "Điểm vòng trước được giữ");
+            for (int turn = 0; turn < 4; turn++) { f.advance(30); f.advance(3); }
+            assertEquals(1, f.finished.get());
+            HistoryData.Detail history = f.saved.getLast();
+            assertEquals("Động vật, Đồ ăn", history.category());
+            assertEquals(8, history.rounds().size());
+            assertEquals("Phở", history.rounds().get(5).word());
+            assertEquals("2-2.png", Path.of(history.rounds().get(5).imagePath()).getFileName().toString(), "Tranh mỗi vòng là một file riêng");
+            assertEquals("2.png", Path.of(history.rounds().get(1).imagePath()).getFileName().toString());
+        }
+    }
+
+    @Test
+    void stagesUseTheChosenTopicsAndRandomStagesAvoidRepeats() {
+        Map<String, List<String>> topics = new LinkedHashMap<>();
+        topics.put("Động vật", List.of("Mèo", "Chó", "Voi"));
+        topics.put("Đồ ăn", List.of("Phở", "Bún", "Cơm"));
+        topics.put("Nhạc cụ", List.of("Đàn", "Trống"));
+        java.util.Random random = new java.util.Random(7);
+        for (int attempt = 0; attempt < 20; attempt++) {
+            List<GamePlan> plans = GamePlan.choose(topics, List.of("", "Động vật"), 3, random);
+            assertEquals("Đồ ăn", plans.getFirst().getCategory(), "Ngẫu nhiên tránh chủ đề đã chọn và chủ đề thiếu từ");
+            assertEquals("Động vật", plans.get(1).getCategory());
+            assertEquals(3, java.util.Set.copyOf(plans.get(1).getWords()).size());
+        }
+        assertNull(GamePlan.choose(topics, List.of("Nhạc cụ"), 3, random), "Chủ đề không đủ từ cho số người");
+        assertNull(GamePlan.choose(topics, List.of("Không có"), 2, random));
+        assertEquals(3, GamePlan.choose(topics, List.of("", "", ""), 2, random).stream()
+                .map(GamePlan::getCategory).distinct().count());
+    }
+
     private static void draftFor(Fixture f, String matchId, int id, byte[] image) {
         f.game.draft(1, id, new DrawUpload(matchId, image));
     }
@@ -548,6 +609,10 @@ class GameManagerTest {
         long roundStarted;
 
         Fixture() throws Exception {
+            this(List.of(new GamePlan("Động vật", List.of("Con mèo", "Con chó", "Con voi", "Con hổ"))));
+        }
+
+        Fixture(List<GamePlan> plans) throws Exception {
             List<PlayerInfo> players = new ArrayList<>();
             Map<Integer, Consumer<Message>> senders = new LinkedHashMap<>();
             for (int id = 1; id <= 4; id++) {
@@ -555,9 +620,7 @@ class GameManagerTest {
                 messages.put(id, new ArrayList<>());
                 senders.put(id, sender(id));
             }
-            game.start(new RoomInfo(1, RoomStatus.PLAYING, players),
-                    new GamePlan("Động vật", List.of("Con mèo", "Con chó", "Con voi", "Con hổ")),
-                    senders, new Object(), finished::incrementAndGet);
+            game.start(new RoomInfo(1, RoomStatus.PLAYING, players), plans, senders, new Object(), finished::incrementAndGet);
             matchId = prompt(1).getMatchId();
             png = store.blank();
         }

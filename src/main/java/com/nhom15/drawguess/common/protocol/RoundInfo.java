@@ -13,6 +13,8 @@ public class RoundInfo implements Serializable {
     private final byte[] image;
     private final int seconds;
     private final String hint;
+    private final int stage;
+    private final int stageCount;
 
     public RoundInfo(String matchId, int roundIndex, int totalRounds, int drawerId, String drawerName, String category, byte[] image, int seconds) {
         this(matchId, roundIndex, totalRounds, drawerId, drawerName, category, image, seconds, null);
@@ -20,6 +22,14 @@ public class RoundInfo implements Serializable {
 
     public RoundInfo(String matchId, int roundIndex, int totalRounds, int drawerId, String drawerName, String category,
                      byte[] image, int seconds, String hint) {
+        this(matchId, roundIndex, totalRounds, drawerId, drawerName, category, image, seconds, hint, 0, 1);
+    }
+
+    // `roundIndex`/`totalRounds` đếm trên cả trận; mỗi vòng có totalRounds / stageCount lượt.
+    public RoundInfo(String matchId, int roundIndex, int totalRounds, int drawerId, String drawerName, String category,
+                     byte[] image, int seconds, String hint, int stage, int stageCount) {
+        this.stage = stage;
+        this.stageCount = stageCount;
         this.hint = hint;
         this.matchId = matchId;
         this.roundIndex = roundIndex;
@@ -40,4 +50,6 @@ public class RoundInfo implements Serializable {
     public byte[] getImage() { return image == null ? null : image.clone(); }
     public int getSeconds() { return seconds; }
     public String getHint() { return hint; }
+    public int getStage() { return stage; }
+    public int getStageCount() { return Math.max(1, stageCount); }
 }

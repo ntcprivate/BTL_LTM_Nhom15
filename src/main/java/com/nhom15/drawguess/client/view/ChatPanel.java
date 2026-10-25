@@ -98,6 +98,18 @@ public class ChatPanel extends VBox {
         if (!shown) { unread.set(unread.get() + 1); }
     }
 
+    // Tin nhắn đã có từ trước (ví dụ chat ở phòng chờ trước khi vào trận); không tính là chưa đọc.
+    public void addHistory(java.util.List<ChatMessage> messages) {
+        list.getItems().addAll(messages);
+        while (list.getItems().size() > MAX_MESSAGES) { list.getItems().removeFirst(); }
+        if (!list.getItems().isEmpty()) { list.scrollTo(list.getItems().size() - 1); }
+    }
+
+    public void clear() {
+        list.getItems().clear();
+        unread.set(0);
+    }
+
     // Lỗi gửi tin (lộ từ khóa, gửi quá nhanh...) hiện ngay trên ô nhập rồi tự ẩn.
     public void showNotice(String text) {
         notice.setText(text);

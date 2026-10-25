@@ -147,23 +147,16 @@ public final class DemoStore {
         }
     }
 
-    // Giống WordDAO: chọn ngẫu nhiên một chủ đề có đủ từ khác nhau cho số người chơi.
-    synchronized GamePlan selectWords(int playerCount) {
-        List<Category> candidates = new ArrayList<>();
+    // Giống WordDAO: tên chủ đề -> các từ khóa khác nhau của chủ đề đó.
+    synchronized Map<String, List<String>> topics() {
+        Map<String, List<String>> result = new LinkedHashMap<>();
         for (Category category : categories) {
-            long distinct = words.stream().filter(w -> w.categoryId() == category.id())
-                    .map(w -> w.content().trim().toLowerCase(Locale.ROOT)).distinct().count();
-            if (distinct >= playerCount) { candidates.add(category); }
+            Map<String, String> unique = new LinkedHashMap<>();
+            words.stream().filter(w -> w.categoryId() == category.id())
+                    .forEach(w -> unique.putIfAbsent(w.content().trim().toLowerCase(Locale.ROOT), w.content().trim()));
+            if (!unique.isEmpty()) { result.put(category.name(), List.copyOf(unique.values())); }
         }
-        if (candidates.isEmpty()) { return null; }
-        Collections.shuffle(candidates);
-        Category chosen = candidates.getFirst();
-        Map<String, String> unique = new LinkedHashMap<>();
-        words.stream().filter(w -> w.categoryId() == chosen.id())
-                .forEach(w -> unique.putIfAbsent(w.content().trim().toLowerCase(Locale.ROOT), w.content().trim()));
-        List<String> selected = new ArrayList<>(unique.values());
-        Collections.shuffle(selected);
-        return new GamePlan(chosen.name(), selected.subList(0, playerCount));
+        return result;
     }
 
     // ---- Lịch sử trận ----
@@ -207,7 +200,7 @@ public final class DemoStore {
 
     public WordDAO wordDAO() {
         return new WordDAO() {
-            @Override public GamePlan selectWords(int playerCount) { return DemoStore.this.selectWords(playerCount); }
+            @Override protected Map<String, List<String>> loadTopics() { return DemoStore.this.topics(); }
         };
     }
 

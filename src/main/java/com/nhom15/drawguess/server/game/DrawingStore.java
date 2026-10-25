@@ -61,22 +61,36 @@ public class DrawingStore {
         return encode(image);
     }
 
+    // Tranh của vòng đầu là "<userId>.png" (như trước), các vòng sau là "<userId>-<vòng>.png".
+    public Path save(String matchId, int userId, int stage, byte[] png) throws IOException {
+        return write(matchId, stage == 0 ? userId + ".png" : userId + "-" + (stage + 1) + ".png", png);
+    }
+
     public Path save(String matchId, int userId, byte[] png) throws IOException {
+        return write(matchId, userId + ".png", png);
+    }
+
+    private Path write(String matchId, String fileName, byte[] png) throws IOException {
         // matchId do server sinh, luôn phải là UUID trước khi sử dụng làm đường dẫn.
         UUID.fromString(matchId);
         Path directory = root.resolve(matchId).normalize();
         if (!directory.startsWith(root)) { throw new IOException("INVALID_PATH"); }
         Files.createDirectories(directory);
-        Path file = directory.resolve(userId + ".png");
+        Path file = directory.resolve(fileName);
         Files.write(file, png);
         return file;
     }
 
     public byte[] load(String matchId, int drawerId) throws IOException {
+        return load(matchId, drawerId, 0);
+    }
+
+    public byte[] load(String matchId, int drawerId, int stage) throws IOException {
         UUID.fromString(matchId);
-        if (drawerId <= 0) { throw new IOException("INVALID_DRAWER"); }
+        if (drawerId <= 0 || stage < 0) { throw new IOException("INVALID_DRAWER"); }
         // Chỉ dựng đường dẫn từ ID đã được server xác thực, không nhận đường dẫn từ client.
-        Path file = root.resolve(matchId).resolve(drawerId + ".png").toRealPath();
+        String fileName = stage == 0 ? drawerId + ".png" : drawerId + "-" + (stage + 1) + ".png";
+        Path file = root.resolve(matchId).resolve(fileName).toRealPath();
         if (!file.startsWith(root.toRealPath())) { throw new IOException("INVALID_PATH"); }
         try (var input = Files.newInputStream(file)) {
             return validate(input.readNBytes(MAX_BYTES));

@@ -50,6 +50,10 @@ public class LobbyView extends VBox {
     private Runnable onNotReady = () -> {};
     private Timeline countdownTimer;
     private int countdownLeft;
+    // Cột bên phải bảng người chơi: vòng đấu (chủ phòng chọn) và chat của phòng.
+    private final StagePanel stagePanel = new StagePanel();
+    private final LobbyChatDock chatDock;
+    private static final double SIDE_WIDTH = 330;
 
     public LobbyView(int userId, Runnable ready, Runnable leave, Runnable logout, IntConsumer kick) {
         this.userId = userId;
@@ -97,7 +101,22 @@ public class LobbyView extends VBox {
         VBox playerBoard = new VBox(14, boardHeader, players);
         playerBoard.getStyleClass().add("lobby-board");
         VBox.setVgrow(players, Priority.ALWAYS);
-        VBox.setVgrow(playerBoard, Priority.ALWAYS);
+        HBox.setHgrow(playerBoard, Priority.ALWAYS);
+        chatDock = new LobbyChatDock(userId);
+        VBox.setVgrow(stagePanel, Priority.ALWAYS);
+        // Mở toàn bộ đoạn chat thì chat chiếm cả cột; thu gọn thì trả chỗ cho vòng đấu.
+        chatDock.expandedProperty().addListener((observable, before, open) -> {
+            stagePanel.setVisible(!open);
+            stagePanel.setManaged(!open);
+            VBox.setVgrow(chatDock, open ? Priority.ALWAYS : Priority.NEVER);
+        });
+        VBox side = new VBox(12, stagePanel, chatDock);
+        side.getStyleClass().add("lobby-side");
+        side.setPrefWidth(SIDE_WIDTH);
+        side.setMinWidth(SIDE_WIDTH - 40);
+        side.setMaxWidth(SIDE_WIDTH);
+        HBox middle = new HBox(14, playerBoard, side);
+        VBox.setVgrow(middle, Priority.ALWAYS);
         HBox statistics = new HBox(12,
                 statistic(playerCount, "SỐ NGƯỜI CHƠI"),
                 statistic(readyCount, "ĐÃ SẴN SÀNG"));
@@ -112,7 +131,7 @@ public class LobbyView extends VBox {
         status.setWrapText(true);
         UiTheme.status(status, "info");
         countdownBar = countdownBar();
-        getChildren().addAll(header, statistics, playerBoard, status, actions, countdownBar);
+        getChildren().addAll(header, statistics, middle, status, actions, countdownBar);
     }
 
     private HBox countdownBar() {
@@ -143,6 +162,39 @@ public class LobbyView extends VBox {
 
     public void setOnNotReady(Runnable action) {
         onNotReady = action;
+    }
+
+    // Chủ phòng đổi vòng đấu: gửi danh sách chủ đề mới lên server.
+    public void setOnStagesChanged(Consumer<List<String>> action) {
+        stagePanel.setOnChange(action);
+    }
+
+    public void setTopics(List<String> topics) {
+        stagePanel.setTopics(topics);
+    }
+
+    public StagePanel getStagePanel() {
+        return stagePanel;
+    }
+
+    public void setOnChat(Consumer<String> send) {
+        chatDock.setOnSend(send);
+    }
+
+    public void addChat(ChatMessage message) {
+        chatDock.add(message);
+    }
+
+    public void showChatNotice(String text) {
+        chatDock.showNotice(text);
+    }
+
+    public void clearChat() {
+        chatDock.clear();
+    }
+
+    public LobbyChatDock getChatDock() {
+        return chatDock;
     }
 
     // Server báo mọi người đã sẵn sàng: hiện đếm ngược thay cho hàng nút Sẵn sàng / Rời phòng.
@@ -276,6 +328,7 @@ public class LobbyView extends VBox {
         players.getChildren().clear();
         playing = room.getStatus() == RoomStatus.PLAYING || room.getStatus() == RoomStatus.GAME_STARTING;
         boolean canKick = room.getHostId() == userId && !playing;
+        stagePanel.show(room.getStages(), canKick);
         canInvite = !playing && room.getPlayers().size() < 8;
         if (invitePanel != null) {
             invitePanel.panel().setCanInvite(canInvite, playing ? "Trận đấu đã bắt đầu nên không mời thêm được."

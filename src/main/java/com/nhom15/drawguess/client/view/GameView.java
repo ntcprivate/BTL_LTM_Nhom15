@@ -475,11 +475,31 @@ public class GameView extends BorderPane {
         }
     }
 
+    // Trận một vòng: "Chủ đề: X"; nhiều vòng: "Vòng 2/3: X".
+    private static String topicTitle(String topic, int stage, int stageCount) {
+        return stageCount > 1 ? "Vòng " + (stage + 1) + "/" + stageCount + ": " + topic : "Chủ đề: " + topic;
+    }
+
+    // Bắt đầu (hoặc sang vòng mới): ô vẽ trắng, bỏ tranh đang đoán của vòng trước.
     public void showDrawing(DrawingPrompt prompt) {
-        category.setText("Chủ đề: " + prompt.getCategory());
+        category.setText(topicTitle(prompt.getCategory(), prompt.getStage(), prompt.getStageCount()));
         word.setText("Từ khóa của bạn: " + prompt.getWord());
         timer.setText("Vẽ: " + prompt.getSeconds() + " giây");
-        status.setText("Vẽ từ khóa của bạn. Tranh sẽ được gửi khi hết giờ.");
+        timer.getStyleClass().remove("timer-urgent");
+        status.setText(prompt.getStage() > 0
+                ? "Vòng " + (prompt.getStage() + 1) + " bắt đầu! Vẽ từ khóa mới của bạn. Tranh sẽ được gửi khi hết giờ."
+                : "Vẽ từ khóa của bạn. Tranh sẽ được gửi khi hết giờ.");
+        picture.setVisible(false);
+        picture.setImage(null);
+        canvas.setVisible(true);
+        base = null;
+        strokes.clear();
+        currentStroke = null;
+        undoableSteps = 0;
+        changed = false;
+        clearCanvas();
+        drawerId = -1;
+        showHint(null, false);
         scorePhase = GamePhase.DRAWING;
         scores.refresh();
         UiTheme.status(status, "info");
@@ -533,8 +553,11 @@ public class GameView extends BorderPane {
         drawerId = round.getDrawerId();
         scorePhase = GamePhase.GUESSING;
         scores.refresh();
+        // Lượt đếm trong vòng hiện tại (mỗi vòng ai cũng có một tranh).
+        int perStage = Math.max(1, round.getTotalRounds() / round.getStageCount());
+        category.setText(topicTitle(round.getCategory(), round.getStage(), round.getStageCount()));
         word.setText("Tranh của " + round.getDrawerName() + " — lượt "
-                + (round.getRoundIndex() + 1) + "/" + round.getTotalRounds());
+                + (round.getRoundIndex() % perStage + 1) + "/" + perStage);
         showHint(round.getHint(), false);
         answer.clear();
         boolean owner = round.getDrawerId() == userId;

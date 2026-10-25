@@ -1,19 +1,41 @@
 package com.nhom15.drawguess.server.dao;
 
 import com.nhom15.drawguess.server.game.GamePlan;
+import com.nhom15.drawguess.server.game.RoomManager;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 
 public class WordDAO {
+    private final Random random = new Random();
+
+    // Một vòng với chủ đề ngẫu nhiên có đủ từ khác nhau cho số người chơi.
     public GamePlan selectWords(int playerCount) throws SQLException {
+        List<GamePlan> plans = selectStages(List.of(""), playerCount);
+        return plans == null ? null : plans.getFirst();
+    }
+
+    // Từ khóa cho từng vòng theo chủ đề chủ phòng chọn ("" = ngẫu nhiên); null nếu có vòng không đủ từ.
+    public List<GamePlan> selectStages(List<String> stages, int playerCount) throws SQLException {
+        return GamePlan.choose(loadTopics(), stages, playerCount, random);
+    }
+
+    // Tên các chủ đề chơi được (đủ từ cho ít nhất số người tối thiểu), theo thứ tự trong cơ sở dữ liệu.
+    public List<String> topics() throws SQLException {
+        List<String> names = new ArrayList<>();
+        loadTopics().forEach((name, words) -> { if (words.size() >= RoomManager.MIN_PLAYERS) { names.add(name); } });
+        return names;
+    }
+
+    // Tên chủ đề -> các từ khóa khác nhau (không phân biệt hoa thường) của chủ đề đó.
+    protected Map<String, List<String>> loadTopics() throws SQLException {
         String sql = "SELECT c.id, c.name, w.content FROM category c "
                 + "JOIN word w ON w.category_id = c.id ORDER BY c.id, w.id";
         Map<Integer, String> names = new LinkedHashMap<>();
@@ -30,15 +52,8 @@ public class WordDAO {
                         .putIfAbsent(content.trim().toLowerCase(Locale.ROOT), content.trim());
             }
         }
-        List<Integer> candidates = new ArrayList<>();
-        words.forEach((id, entries) -> {
-            if (entries.size() >= playerCount) { candidates.add(id); }
-        });
-        if (candidates.isEmpty()) { return null; }
-        Collections.shuffle(candidates);
-        int categoryId = candidates.getFirst();
-        List<String> selected = new ArrayList<>(words.get(categoryId).values());
-        Collections.shuffle(selected);
-        return new GamePlan(names.get(categoryId), selected.subList(0, playerCount));
+        Map<String, List<String>> topics = new LinkedHashMap<>();
+        words.forEach((id, entries) -> topics.put(names.get(id), List.copyOf(entries.values())));
+        return topics;
     }
 }

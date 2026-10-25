@@ -39,6 +39,27 @@ class HistoryImageServiceTest {
         assertEquals(matchId, image.matchId()); assertEquals(0, image.roundIndex());
         assertArrayEquals(store.blank(), image.png());
     }
+    @Test void laterStageDrawingIsReadFromItsOwnFile() throws Exception {
+        DrawingStore store = new DrawingStore(directory);
+        store.save(matchId, 2, store.blank());
+        java.awt.image.BufferedImage dot = new java.awt.image.BufferedImage(500, 500, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        dot.setRGB(10, 10, 0xffffff);
+        var output = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(dot, "png", output);
+        byte[] second = store.validate(output.toByteArray());
+        Path file = store.save(matchId, 2, 1, second);
+        assertEquals("2-2.png", file.getFileName().toString());
+        HistoryDAO history = new HistoryDAO() {
+            @Override public DrawingReference drawing(int userId, String id, int round) {
+                assertEquals(9, round);
+                return new DrawingReference(2, file.toString());
+            }
+        };
+        var service = new HistoryImageService(history, store);
+        var image = assertInstanceOf(HistoryData.DrawingImage.class,
+                service.getImage(15, new HistoryData.ImageRequest(matchId, 9)).getData());
+        assertArrayEquals(second, image.png());
+    }
     @Test void unauthorizedOrUnfinishedMatchCannotReadAnExistingFile() throws Exception {
         DrawingStore store = new DrawingStore(directory);
         store.save(matchId, 2, store.blank());
@@ -79,7 +100,7 @@ class HistoryImageServiceTest {
         failure(service.getImage(15, new HistoryData.ImageRequest(null, 0)), "INVALID_REQUEST");
         failure(service.getImage(15, new HistoryData.ImageRequest("../../file", 0)), "INVALID_REQUEST");
         failure(service.getImage(15, new HistoryData.ImageRequest(matchId, -1)), "INVALID_REQUEST");
-        failure(service.getImage(15, new HistoryData.ImageRequest(matchId, 8)), "INVALID_REQUEST");
+        failure(service.getImage(15, new HistoryData.ImageRequest(matchId, 40)), "INVALID_REQUEST");
         assertEquals(0, calls.get());
     }
 }

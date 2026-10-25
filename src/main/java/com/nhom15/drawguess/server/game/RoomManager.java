@@ -22,6 +22,7 @@ public class RoomManager {
     // Mọi người sẵn sàng thì đếm ngược chừng này giây rồi mới vào trận; trong lúc đó ai cũng hủy được.
     public static final int START_COUNTDOWN_SECONDS = 5;
     public static final int CHAT_MAX_LENGTH = 200;
+    public static final int MAX_STAGES = RoomInfo.MAX_STAGES;
     // Mỗi người gửi tối đa một tin nhắn mỗi 0,4 giây để không ai làm trôi khung chat.
     private static final long CHAT_INTERVAL_NANOS = TimeUnit.MILLISECONDS.toNanos(400);
 
@@ -241,7 +242,9 @@ public class RoomManager {
     }
 
     // Chủ phòng rời đi thì người vào phòng sớm nhất còn lại làm chủ phòng.
+    // Phòng trống thì vòng đấu trở về mặc định cho nhóm người chơi tiếp theo.
     private void updateHost(Room room) {
+        if (room.players.isEmpty()) { room.stages = RoomInfo.DEFAULT_STAGES; }
         if (room.players.containsKey(room.hostId)) { return; }
         room.hostId = room.players.keySet().stream().findFirst().orElse(0);
     }
@@ -279,12 +282,14 @@ public class RoomManager {
             broadcast(room, MessageType.READY_STATUS);
             return;
         }
-        GamePlan plan = null;
+        List<GamePlan> plans = null;
         if (gameManager != null) {
             String error = null;
             try {
-                plan = gameManager.prepare(room.players.size());
-                if (plan == null) { error = "NOT_ENOUGH_WORDS"; }
+                plans = gameManager.prepare(room.stages, room.players.size());
+                if (plans == null) {
+                    error = room.stages.stream().allMatch(String::isBlank) ? "NOT_ENOUGH_WORDS" : "TOPIC_UNAVAILABLE";
+                }
             } catch (SQLException e) {
                 System.err.println("Không tải được từ khóa: SQLState=" + e.getSQLState());
                 error = "GAME_DATABASE_ERROR";
@@ -304,7 +309,7 @@ public class RoomManager {
         if (gameManager != null) {
             Map<Integer, Consumer<Message>> senders = new LinkedHashMap<>();
             room.players.forEach((id, player) -> senders.put(id, player.sender));
-            gameManager.start(snapshot(room), plan, senders, room, () -> finishRoom(room));
+            gameManager.start(snapshot(room), plans, senders, room, () -> finishRoom(room));
         }
     }
 
@@ -435,6 +440,51 @@ public class RoomManager {
         }
     }
 
+    // Chủ phòng đặt chủ đề cho từng vòng (1–5 vòng, "" là ngẫu nhiên, không trùng chủ đề). Chỉ đổi được lúc chờ.
+    public void setStages(int userId, Object payload, Consumer<Message> reply) {
+        Room room = memberships.get(userId);
+        if (room == null) {
+            reply.accept(new Message(MessageType.ACTION_FAILED, "NOT_IN_ROOM"));
+            return;
+        }
+        List<String> stages = parseStages(payload);
+        synchronized (room) {
+            String error = null;
+            if (memberships.get(userId) != room) {
+                error = "NOT_IN_ROOM";
+            } else if (room.hostId != userId) {
+                error = "NOT_HOST";
+            } else if (room.status == RoomStatus.PLAYING || room.status == RoomStatus.GAME_STARTING) {
+                error = "ROOM_PLAYING";
+            } else if (stages == null) {
+                error = "INVALID_STAGES";
+            }
+            if (error != null) {
+                reply.accept(new Message(MessageType.ACTION_FAILED, error));
+                return;
+            }
+            room.stages = stages;
+            broadcast(room, MessageType.ROOM_INFO);
+        }
+    }
+
+    private static List<String> parseStages(Object payload) {
+        if (!(payload instanceof List<?> values) || values.isEmpty() || values.size() > MAX_STAGES) { return null; }
+        List<String> stages = new ArrayList<>();
+        for (Object value : values) {
+            if (!(value instanceof String text) || text.strip().length() > 100) { return null; }
+            String topic = text.strip();
+            if (!topic.isEmpty() && stages.contains(topic)) { return null; }
+            stages.add(topic);
+        }
+        return List.copyOf(stages);
+    }
+
+    // Các chủ đề chủ phòng chọn được; không có game (server thử nghiệm) thì danh sách rỗng.
+    public List<String> topics() throws SQLException {
+        return gameManager == null ? List.of() : gameManager.topics();
+    }
+
     private boolean tryStartCooldown(int inviterId, int targetId) {
         long now = clock.getAsLong();
         long cooldown = TimeUnit.SECONDS.toNanos(INVITE_COOLDOWN_SECONDS);
@@ -479,7 +529,7 @@ public class RoomManager {
                 .map(p -> new PlayerInfo(p.user.getId(), p.user.getUsername(), p.ready, p.online,
                         p.user.getAvatarKey()))
                 .toList();
-        return new RoomInfo(room.id, room.status, players, room.hostId);
+        return new RoomInfo(room.id, room.status, players, room.hostId, room.stages);
     }
 
     private void broadcast(Room room, MessageType type) {
@@ -501,6 +551,8 @@ public class RoomManager {
         int hostId;
         // Tăng mỗi lần bắt đầu đếm ngược, để việc hẹn giờ của lượt đếm cũ biết mình đã hết hiệu lực.
         long countdownId;
+        // Chủ đề của từng vòng đấu ("" = ngẫu nhiên), chủ phòng đặt trước khi vào trận.
+        List<String> stages = RoomInfo.DEFAULT_STAGES;
 
         Room(int id) { this.id = id; }
     }

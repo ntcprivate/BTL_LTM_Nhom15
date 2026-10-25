@@ -191,7 +191,7 @@ public class ClientHandler implements Runnable {
                 handleDataMessage(message); return;
             }
             case GET_ROOMS, JOIN_ROOM, LEAVE_ROOM, READY, CANCEL_READY, KICK_PLAYER, DRAW_UPLOAD, DRAW_DRAFT, GUESS,
-                 REPORT_DRAWING, GET_ONLINE_USERS, INVITE_PLAYER, DECLINE_INVITE, CHAT_SEND -> {
+                 REPORT_DRAWING, GET_ONLINE_USERS, INVITE_PLAYER, DECLINE_INVITE, CHAT_SEND, GET_TOPICS, SET_STAGES -> {
                 handleRoomMessage(message, receivedAt);
                 return;
             }
@@ -314,6 +314,14 @@ public class ClientHandler implements Runnable {
             case DRAW_UPLOAD, DRAW_DRAFT, GUESS, REPORT_DRAWING ->
                     roomManager.handleGameMessage(currentUser.getId(), message, receivedAt, outbox);
             case CHAT_SEND -> roomManager.chat(currentUser, message.getData(), outbox);
+            case SET_STAGES -> roomManager.setStages(currentUser.getId(), message.getData(), outbox);
+            case GET_TOPICS -> {
+                // Lỗi cơ sở dữ liệu thì gửi danh sách rỗng: chủ phòng vẫn chọn được "Ngẫu nhiên".
+                List<String> topics = List.of();
+                try { topics = new ArrayList<>(roomManager.topics()); }
+                catch (SQLException e) { System.err.println("Không tải được chủ đề: SQLState=" + e.getSQLState()); }
+                sendMessage(new Message(MessageType.TOPICS, new ArrayList<>(topics)));
+            }
             case GET_ONLINE_USERS -> {
                 // Người đang rảnh lên đầu để dễ mời; không liệt kê chính mình và tài khoản quản trị.
                 List<OnlineUser> users = sessionManager.onlineUsers().stream()

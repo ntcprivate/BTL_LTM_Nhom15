@@ -68,5 +68,7 @@ public enum MessageType {
     // Chat trong phòng: client gửi chữ, server phát ChatMessage cho cả phòng.
     CHAT_SEND, CHAT_MESSAGE,
     // Bản nháp tranh đang vẽ (DrawUpload): client gửi định kỳ; server gửi lại cho người vào lại trận.
-    DRAW_DRAFT
+    DRAW_DRAFT,
+    // Vòng đấu: danh sách chủ đề để chọn, và chủ phòng đặt chủ đề cho từng vòng (List<String>, "" = ngẫu nhiên).
+    GET_TOPICS, TOPICS, SET_STAGES
 }

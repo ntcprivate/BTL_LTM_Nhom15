@@ -27,7 +27,7 @@ public class HistoryImageService {
         String id = request.matchId();
         int round = request.roundIndex();
         try {
-            if (id == null || !UUID.fromString(id).toString().equals(id) || round < 0 || round >= RoomManager.MAX_PLAYERS) {
+            if (id == null || !UUID.fromString(id).toString().equals(id) || round < 0 || round >= RoomManager.MAX_PLAYERS * RoomInfo.MAX_STAGES) {
                 return failed(id, round, "INVALID_REQUEST");
             }
         } catch (IllegalArgumentException e) { return failed(id, round, "INVALID_REQUEST"); }
@@ -37,12 +37,20 @@ public class HistoryImageService {
             if (reference.imagePath() == null || reference.imagePath().isBlank()) {
                 return failed(id, round, "IMAGE_NOT_AVAILABLE");
             }
-            byte[] png = drawings.load(id, reference.drawerId());
+            byte[] png = drawings.load(id, reference.drawerId(), stageOf(reference));
             return new Message(MessageType.HISTORY_IMAGE, new HistoryData.DrawingImage(id, round, png));
         } catch (SQLException e) {
             System.err.println("Lỗi đọc ảnh lịch sử: SQLState=" + e.getSQLState());
             return failed(id, round, "DATABASE_ERROR");
         } catch (IOException e) { return failed(id, round, "IMAGE_NOT_AVAILABLE"); }
+    }
+
+    // Tên file "<drawerId>-<vòng>.png" cho biết tranh thuộc vòng nào; tên khác là tranh vòng đầu.
+    private static int stageOf(HistoryDAO.DrawingReference reference) {
+        String path = reference.imagePath();
+        String name = path.substring(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(reference.drawerId() + "-(\\d)\\.png").matcher(name);
+        return matcher.matches() ? Integer.parseInt(matcher.group(1)) - 1 : 0;
     }
 
     public static Message failed(String id, int round, String reason) {

@@ -49,6 +49,23 @@ public class GameController {
         view.showMessage(message);
     }
 
+    // Server gửi từ khóa mới của cùng trận: sang vòng (chủ đề) tiếp theo trên chính màn hình này.
+    public boolean isFor(String id) {
+        return !closed && matchId.equals(id);
+    }
+
+    public void nextStage(DrawingPrompt prompt) {
+        uploadRequested = false;
+        round = -1;
+        view.showDrawing(prompt);
+        drafts.playFromStart();
+    }
+
+    // Tin nhắn ở phòng chờ trước khi vào trận.
+    public void loadChat(List<ChatMessage> history) {
+        view.getChat().addHistory(history);
+    }
+
     public void setOnPlayAgain(Runnable action) {
         view.setOnPlayAgain(action);
     }
@@ -188,7 +205,7 @@ public class GameController {
         }
     }
 
-    private static String chatError(String reason) {
+    public static String chatError(String reason) {
         return switch (reason) {
             case "CHAT_HAS_ANSWER" -> "Tin nhắn có chứa từ khóa đang được đoán nên không gửi được.";
             case "CHAT_TOO_FAST" -> "Bạn nhắn hơi nhanh, chờ một chút rồi gửi tiếp nhé.";
@@ -201,6 +218,8 @@ public class GameController {
         return switch (reason) {
             case "GAME_DATABASE_ERROR" -> "Không tải được chủ đề và từ khóa. Hãy kiểm tra dữ liệu game trên server.";
             case "NOT_ENOUGH_WORDS" -> "Chưa có chủ đề đủ từ khóa cho số người chơi.";
+            case "TOPIC_UNAVAILABLE" -> "Có chủ đề trong vòng đấu không còn hoặc không đủ từ khóa cho số người chơi. "
+                    + "Chủ phòng hãy chọn chủ đề khác.";
             case "INVALID_PNG" -> "Ảnh phải là PNG 500×500 và nhỏ hơn 200 KB.";
             case "UPLOAD_NOT_ACTIVE" -> "Đã hết thời gian nhận tranh.";
             case "HISTORY_STORAGE_ERROR" -> "Không lưu được lịch sử. Hãy chạy history.sql và kiểm tra MySQL.";

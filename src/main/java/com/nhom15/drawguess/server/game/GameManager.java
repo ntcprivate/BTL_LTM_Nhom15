@@ -69,20 +69,29 @@ public class GameManager implements AutoCloseable {
         return wordDAO.selectWords(playerCount);
     }
 
+    // Từ khóa cho từng vòng; `topics` là chủ đề chủ phòng chọn cho mỗi vòng ("" = ngẫu nhiên).
+    public List<GamePlan> prepare(List<String> topics, int playerCount) throws SQLException {
+        return wordDAO.selectStages(topics, playerCount);
+    }
+
+    // Các chủ đề chủ phòng có thể chọn.
+    public List<String> topics() throws SQLException {
+        return wordDAO.topics();
+    }
+
     public void start(RoomInfo room, GamePlan plan, Map<Integer, Consumer<Message>> senders,
                       Object roomLock, Runnable finished) {
-        Match match = new Match(room, plan, senders, roomLock, finished);
+        start(room, List.of(plan), senders, roomLock, finished);
+    }
+
+    // Một trận gồm nhiều vòng, mỗi vòng một chủ đề: cả phòng vẽ rồi đoán lần lượt tranh của nhau, điểm cộng dồn.
+    public void start(RoomInfo room, List<GamePlan> plans, Map<Integer, Consumer<Message>> senders,
+                      Object roomLock, Runnable finished) {
+        Match match = new Match(room, plans, senders, roomLock, finished);
         synchronized (roomLock) {
             matches.put(room.getRoomId(), match);
             if (!persist(match)) { abort(match, "HISTORY_STORAGE_ERROR"); return; }
-            match.deadline = clock.getAsLong() + seconds(DRAW_SECONDS);
-            broadcast(match, MessageType.ROUND_CATEGORY, plan.getCategory());
-            for (Player player : match.players.values()) {
-                send(player, MessageType.DRAW_WORD, new DrawingPrompt(match.id, room.getRoomId(),
-                        plan.getCategory(), player.word, DRAW_SECONDS));
-            }
-            broadcastScores(match, false);
-            sendTimer(match);
+            beginStage(match, 0);
             if (timers != null) {
                 match.timer = timers.scheduleAtFixedRate(() -> {
                     try { tick(room.getRoomId()); }
@@ -132,13 +141,14 @@ public class GameManager implements AutoCloseable {
                 fail(reply, "UPLOAD_NOT_ACTIVE"); return;
             }
             if (player == null || !player.online) { fail(reply, "NOT_IN_MATCH"); return; }
-            if (player.image != null) { fail(reply, "ALREADY_UPLOADED"); return; }
+            Turn turn = match.drawing(player);
+            if (turn.image != null) { fail(reply, "ALREADY_UPLOADED"); return; }
             byte[] image;
             try { image = drawings.validate(upload.getImage()); }
             catch (IOException e) { fail(reply, "INVALID_PNG"); return; }
-            try { player.imagePath = drawings.save(match.id, userId, image).toString(); }
+            try { turn.imagePath = drawings.save(match.id, userId, match.stage, image).toString(); }
             catch (IOException e) { abort(match, "DRAWING_STORAGE_ERROR"); return; }
-            player.image = image;
+            turn.image = image;
             persist(match);
             reply.accept(new Message(MessageType.ACTION_SUCCESS, "DRAW_UPLOAD"));
             if (allUploaded(match)) { beginGuessing(match); }
@@ -155,7 +165,7 @@ public class GameManager implements AutoCloseable {
                     || !match.id.equals(upload.getMatchId())
                     || (match.phase != GamePhase.DRAWING && match.phase != GamePhase.UPLOADING)) { return; }
             Player player = match.players.get(userId);
-            if (player == null || !player.online || player.image != null) { return; }
+            if (player == null || !player.online || match.drawing(player).image != null) { return; }
             long now = clock.getAsLong();
             if (player.draft != null && now - player.draftAt < DRAFT_INTERVAL_NANOS) { return; }
             try { player.draft = drawings.validate(upload.getImage()); }
@@ -179,7 +189,8 @@ public class GameManager implements AutoCloseable {
                     || receivedAt < match.roundStarted || receivedAt >= match.deadline) {
                 guessReply(reply, request, false, player, true, "ROUND_NOT_ACTIVE"); return;
             }
-            Player drawer = match.order.get(match.round);
+            Turn turn = match.current();
+            Player drawer = turn.drawer;
             if (drawer == player) { guessReply(reply, request, false, player, true, "OWN_DRAWING"); return; }
             if (player.solved || player.attempts >= 3) {
                 guessReply(reply, request, false, player, true, "GUESS_LOCKED"); return;
@@ -190,7 +201,7 @@ public class GameManager implements AutoCloseable {
             }
             player.attempts++;
             int earned = 0;
-            boolean correct = normalize(answer).equals(normalize(drawer.word));
+            boolean correct = normalize(answer).equals(normalize(turn.word));
             if (correct) {
                 player.solved = true;
                 player.correctCount++;
@@ -216,7 +227,7 @@ public class GameManager implements AutoCloseable {
                     match.drawerRoundPoints++;
                 }
             }
-            match.guesses.get(match.round).add(new HistoryData.Guess(player.id, player.username, answer.trim(),
+            turn.guesses.add(new HistoryData.Guess(player.id, player.username, answer.trim(),
                     correct, match.roundWallStarted + TimeUnit.NANOSECONDS.toMillis(receivedAt - match.roundStarted),
                     (receivedAt - match.roundStarted) / 1_000_000_000.0));
             persist(match);
@@ -241,10 +252,11 @@ public class GameManager implements AutoCloseable {
         String message = " " + chatForm(text) + " ";
         String joined = message.replace(" ", "");
         synchronized (match.lock) {
-            for (int index = 0; index < match.order.size(); index++) {
-                boolean revealed = index < match.round || (index == match.round && match.phase == GamePhase.ROUND_END);
+            for (int index = 0; index < match.turns.size(); index++) {
+                // Lượt đang đoán còn bí mật; lượt trước đó đã công bố (kể cả khi đã sang vòng vẽ mới).
+                boolean revealed = index < match.round || (index == match.round && match.phase != GamePhase.GUESSING);
                 if (revealed) { continue; }
-                String word = chatForm(match.order.get(index).word);
+                String word = chatForm(match.turns.get(index).word);
                 // Khớp nguyên từ ("cá" không chặn "các bạn"); từ nhiều tiếng thì chặn cả kiểu viết liền.
                 if (message.contains(" " + word + " ") || (word.contains(" ") && joined.contains(word.replace(" ", "")))) {
                     return true;
@@ -276,7 +288,7 @@ public class GameManager implements AutoCloseable {
                     || request.getRoundIndex() != match.round) {
                 fail(reply, "REPORT_NOT_ACTIVE"); return;
             }
-            if (match.order.get(match.round) == player) { fail(reply, "OWN_DRAWING"); return; }
+            if (match.current().drawer == player) { fail(reply, "OWN_DRAWING"); return; }
             if (!match.reports.add(userId)) { fail(reply, "ALREADY_REPORTED"); return; }
             reply.accept(new Message(MessageType.ACTION_SUCCESS, "REPORT_DRAWING"));
             applyReports(match);
@@ -289,7 +301,7 @@ public class GameManager implements AutoCloseable {
     }
 
     private int reportsNeeded(Match match) {
-        Player drawer = match.order.get(match.round);
+        Player drawer = match.current().drawer;
         long guessers = match.players.values().stream().filter(p -> p.online && p != drawer).count();
         return (int) guessers / 2 + 1;
     }
@@ -298,13 +310,13 @@ public class GameManager implements AutoCloseable {
     private void applyReports(Match match) {
         if (!match.drawingRejected && validReports(match) >= reportsNeeded(match)) {
             match.drawingRejected = true;
-            match.order.get(match.round).score -= match.drawerRoundPoints;
+            match.current().drawer.score -= match.drawerRoundPoints;
             match.drawerRoundPoints = 0;
             persist(match);
             broadcastScores(match, false);
         }
         broadcast(match, MessageType.REPORT_STATUS, new ReportStatus(match.id, match.round,
-                match.order.get(match.round).id, validReports(match), reportsNeeded(match), match.drawingRejected));
+                match.current().drawer.id, validReports(match), reportsNeeded(match), match.drawingRejected));
     }
 
     public void disconnect(int roomId, int userId) {
@@ -337,22 +349,20 @@ public class GameManager implements AutoCloseable {
             player.online = true;
             player.sender = sender;
             int remaining = remainingSeconds(match);
-            send(player, MessageType.ROUND_CATEGORY, match.category);
-            send(player, MessageType.DRAW_WORD, new DrawingPrompt(match.id, roomId, match.category, player.word,
-                    match.phase == GamePhase.DRAWING ? remaining : 0));
+            send(player, MessageType.ROUND_CATEGORY, match.category());
+            send(player, MessageType.DRAW_WORD, prompt(match, player, match.phase == GamePhase.DRAWING ? remaining : 0));
             // Trả lại tranh đang vẽ dở (trước SUBMIT_DRAW để client gửi đúng tranh đó chứ không phải tranh trắng).
             if ((match.phase == GamePhase.DRAWING || match.phase == GamePhase.UPLOADING)
-                    && player.image == null && player.draft != null) {
+                    && match.drawing(player).image == null && player.draft != null) {
                 send(player, MessageType.DRAW_DRAFT, new DrawUpload(match.id, player.draft));
             }
             if (match.phase == GamePhase.UPLOADING) {
                 // Client gửi ngay tranh đang có; đã gửi trước khi mất kết nối thì server báo ALREADY_UPLOADED.
                 send(player, MessageType.SUBMIT_DRAW, match.id);
             } else if (match.phase == GamePhase.GUESSING || match.phase == GamePhase.ROUND_END) {
-                Player drawer = match.order.get(match.round);
-                send(player, MessageType.ROUND_START, new RoundInfo(match.id, match.round, match.order.size(),
-                        drawer.id, drawer.username, match.category, drawer.image,
-                        match.phase == GamePhase.GUESSING ? remaining : 0, match.hint));
+                Turn turn = match.current();
+                Player drawer = turn.drawer;
+                send(player, MessageType.ROUND_START, roundInfo(match, match.phase == GamePhase.GUESSING ? remaining : 0));
                 if (player != drawer && (player.solved || player.attempts >= 3)) {
                     send(player, MessageType.GUESS_RESULT, new GuessResult(match.id, match.round, player.solved,
                             Math.max(0, 3 - player.attempts), true, player.solved ? "CORRECT" : "GUESS_LOCKED"));
@@ -360,7 +370,7 @@ public class GameManager implements AutoCloseable {
                 if (match.reports.contains(userId)) { send(player, MessageType.ACTION_SUCCESS, "REPORT_DRAWING"); }
                 if (match.phase == GamePhase.ROUND_END) {
                     send(player, MessageType.TIME_UP, new TimerInfo(match.id, GamePhase.ROUND_END, 0));
-                    send(player, MessageType.ANSWER, new RoundAnswer(match.id, match.round, drawer.word));
+                    send(player, MessageType.ANSWER, new RoundAnswer(match.id, match.round, turn.word));
                 }
                 // Thêm một người đoán thì số phiếu báo cáo cần cũng thay đổi.
                 if (!match.reports.isEmpty()) { applyReports(match); }
@@ -376,6 +386,29 @@ public class GameManager implements AutoCloseable {
         return (int) ((remaining + 999_999_999L) / 1_000_000_000L);
     }
 
+    // Bắt đầu vòng `stage`: mỗi người nhận một từ của chủ đề vòng này và có 60 giây để vẽ.
+    private void beginStage(Match match, int stage) {
+        match.stage = stage;
+        match.phase = GamePhase.DRAWING;
+        match.deadline = clock.getAsLong() + seconds(DRAW_SECONDS);
+        for (Player player : match.order) { player.draft = null; }
+        broadcast(match, MessageType.ROUND_CATEGORY, match.category());
+        for (Player player : match.order) { send(player, MessageType.DRAW_WORD, prompt(match, player, DRAW_SECONDS)); }
+        broadcastScores(match, false);
+        sendTimer(match);
+    }
+
+    private DrawingPrompt prompt(Match match, Player player, int seconds) {
+        return new DrawingPrompt(match.id, match.roomId, match.category(), match.drawing(player).word, seconds,
+                match.stage, match.plans.size());
+    }
+
+    private RoundInfo roundInfo(Match match, int seconds) {
+        Turn turn = match.current();
+        return new RoundInfo(match.id, match.round, match.turns.size(), turn.drawer.id, turn.drawer.username,
+                match.category(), turn.image, seconds, match.hint, match.stage, match.plans.size());
+    }
+
     private void beginUpload(Match match) {
         match.phase = GamePhase.UPLOADING;
         match.deadline = clock.getAsLong() + seconds(UPLOAD_SECONDS);
@@ -384,26 +417,32 @@ public class GameManager implements AutoCloseable {
     }
 
     private boolean allUploaded(Match match) {
-        return match.players.values().stream().allMatch(p -> !p.online || p.image != null);
+        return match.players.values().stream().allMatch(p -> !p.online || match.drawing(p).image != null);
     }
 
     private void beginGuessing(Match match) {
         try {
             for (Player player : match.order) {
-                if (player.image == null) {
+                Turn turn = match.drawing(player);
+                if (turn.image == null) {
                     // Người không gửi được tranh (thường do mất kết nối) dùng bản nháp cuối cùng, không có thì tranh trắng.
-                    player.image = player.draft != null ? player.draft : drawings.blank();
-                    player.imagePath = drawings.save(match.id, player.id, player.image).toString();
+                    turn.image = player.draft != null ? player.draft : drawings.blank();
+                    turn.imagePath = drawings.save(match.id, player.id, match.stage, turn.image).toString();
                 }
             }
         } catch (IOException e) { abort(match, "DRAWING_STORAGE_ERROR"); return; }
-        match.round = -1;
+        match.round = match.stage * match.order.size() - 1;
         nextRound(match);
     }
 
     private void nextRound(Match match) {
         match.round++;
-        if (match.round >= match.order.size()) { finish(match); return; }
+        // Đoán xong tranh của vòng này: sang vòng (chủ đề) tiếp theo, hoặc kết thúc trận.
+        if (match.round >= (match.stage + 1) * match.order.size()) {
+            if (match.stage + 1 < match.plans.size()) { beginStage(match, match.stage + 1); }
+            else { finish(match); }
+            return;
+        }
         match.phase = GamePhase.GUESSING;
         match.roundStarted = clock.getAsLong();
         match.roundWallStarted = System.currentTimeMillis();
@@ -416,10 +455,8 @@ public class GameManager implements AutoCloseable {
         match.drawingRejected = false;
         match.drawerRoundPoints = 0;
         for (Player player : match.order) { player.attempts = 0; player.solved = false; }
-        Player drawer = match.order.get(match.round);
-        match.hint = WordHints.mask(drawer.word, Set.of());
-        broadcast(match, MessageType.ROUND_START, new RoundInfo(match.id, match.round, match.order.size(),
-                drawer.id, drawer.username, match.category, drawer.image, GUESS_SECONDS, match.hint));
+        match.hint = WordHints.mask(match.current().word, Set.of());
+        broadcast(match, MessageType.ROUND_START, roundInfo(match, GUESS_SECONDS));
         broadcastScores(match, false);
         sendTimer(match);
         if (everyoneDone(match)) { endRound(match); }
@@ -428,7 +465,7 @@ public class GameManager implements AutoCloseable {
     // Mở một chữ cái ngẫu nhiên; từ chỉ có một chữ cái thì không mở vì sẽ lộ đáp án.
     private void revealHint(Match match) {
         match.hintRevealed = true;
-        String word = match.order.get(match.round).word;
+        String word = match.current().word;
         int letters = WordHints.letterCount(word);
         if (letters < 2) { return; }
         String hint = WordHints.mask(word, Set.of(random.nextInt(letters)));
@@ -437,7 +474,7 @@ public class GameManager implements AutoCloseable {
     }
 
     private boolean everyoneDone(Match match) {
-        Player drawer = match.order.get(match.round);
+        Player drawer = match.current().drawer;
         return match.players.values().stream().filter(p -> p.online && p != drawer)
                 .allMatch(p -> p.solved || p.attempts >= 3);
     }
@@ -448,7 +485,7 @@ public class GameManager implements AutoCloseable {
         match.phase = GamePhase.ROUND_END;
         match.deadline = clock.getAsLong() + seconds(REVEAL_SECONDS);
         broadcast(match, MessageType.TIME_UP, new TimerInfo(match.id, GamePhase.ROUND_END, 0));
-        broadcast(match, MessageType.ANSWER, new RoundAnswer(match.id, match.round, match.order.get(match.round).word));
+        broadcast(match, MessageType.ANSWER, new RoundAnswer(match.id, match.round, match.current().word));
         broadcastScores(match, false);
     }
 
@@ -464,7 +501,7 @@ public class GameManager implements AutoCloseable {
         if (match.timer != null) { match.timer.cancel(false); }
         match.endedAt = System.currentTimeMillis();
         if ("IN_PROGRESS".equals(match.status)) { match.status = "COMPLETED"; }
-        if (match.round >= 0 && match.round < match.order.size() && match.roundStarts.containsKey(match.round)) {
+        if (match.round >= 0 && match.round < match.turns.size() && match.roundStarts.containsKey(match.round)) {
             match.roundEnds.putIfAbsent(match.round, match.endedAt);
         }
         persist(match);
@@ -475,13 +512,15 @@ public class GameManager implements AutoCloseable {
 
     private boolean persist(Match match) {
         List<HistoryData.Round> rounds = new ArrayList<>();
-        for (int i=0; i<match.order.size(); i++) {
-            Player p=match.order.get(i);
-            rounds.add(new HistoryData.Round(i,p.id,p.username,p.word,p.imagePath,
-                    match.roundStarts.get(i),match.roundEnds.get(i),List.copyOf(match.guesses.get(i))));
+        // Chỉ lưu các lượt của những vòng đã bắt đầu, không để lộ từ khóa của vòng chưa chơi.
+        for (int i=0; i<match.turns.size(); i++) {
+            Turn t=match.turns.get(i);
+            if (t.stage > match.stage) { break; }
+            rounds.add(new HistoryData.Round(i,t.drawer.id,t.drawer.username,t.word,t.imagePath,
+                    match.roundStarts.get(i),match.roundEnds.get(i),List.copyOf(t.guesses)));
         }
         try {
-            historyDAO.save(new HistoryData.Detail(match.id,match.roomId,match.category,match.startedAt,
+            historyDAO.save(new HistoryData.Detail(match.id,match.roomId,match.categories,match.startedAt,
                     match.endedAt,match.status,scores(match,match.endedAt != null),rounds));
             return true;
         } catch (SQLException e) {
@@ -546,10 +585,14 @@ public class GameManager implements AutoCloseable {
         long roundWallStarted;
         final Map<Integer,Long> roundStarts = new LinkedHashMap<>();
         final Map<Integer,Long> roundEnds = new LinkedHashMap<>();
-        final List<List<HistoryData.Guess>> guesses = new ArrayList<>();
         final String id = UUID.randomUUID().toString();
         final int roomId;
-        final String category;
+        final List<GamePlan> plans;
+        // Tên các chủ đề, lưu vào lịch sử trận (cột category_name dài tối đa 100 ký tự).
+        final String categories;
+        // Mọi lượt đoán của trận theo thứ tự: vòng 0 (người 1, 2, ...), vòng 1, ...
+        final List<Turn> turns = new ArrayList<>();
+        int stage;
         final Object lock;
         final Runnable finished;
         final Map<Integer, Player> players = new LinkedHashMap<>();
@@ -569,29 +612,50 @@ public class GameManager implements AutoCloseable {
         int drawerRoundPoints;
         ScheduledFuture<?> timer;
 
-        Match(RoomInfo room, GamePlan plan, Map<Integer, Consumer<Message>> senders, Object lock, Runnable finished) {
+        Match(RoomInfo room, List<GamePlan> plans, Map<Integer, Consumer<Message>> senders, Object lock, Runnable finished) {
             roomId = room.getRoomId();
-            category = plan.getCategory();
+            this.plans = List.copyOf(plans);
+            String names = String.join(", ", plans.stream().map(GamePlan::getCategory).toList());
+            categories = names.length() <= 100 ? names : names.substring(0, 99) + "…";
             this.lock = lock;
             this.finished = finished;
             for (int i = 0; i < room.getPlayers().size(); i++) {
                 PlayerInfo info = room.getPlayers().get(i);
-                Player player = new Player(info.getUserId(), info.getUsername(), plan.getWords().get(i), senders.get(info.getUserId()));
+                Player player = new Player(info.getUserId(), info.getUsername(), i, senders.get(info.getUserId()));
                 players.put(player.id, player);
                 order.add(player);
-                guesses.add(new ArrayList<>());
+            }
+            for (int s = 0; s < plans.size(); s++) {
+                for (Player player : order) { turns.add(new Turn(s, player, plans.get(s).getWords().get(player.index))); }
             }
         }
+
+        String category() { return plans.get(stage).getCategory(); }
+        // Tranh người chơi vẽ ở vòng hiện tại.
+        Turn drawing(Player player) { return turns.get(stage * order.size() + player.index); }
+        // Lượt đang được đoán.
+        Turn current() { return turns.get(round); }
+    }
+
+    private static class Turn {
+        final int stage;
+        final Player drawer;
+        final String word;
+        byte[] image;
+        String imagePath;
+        final List<HistoryData.Guess> guesses = new ArrayList<>();
+
+        Turn(int stage, Player drawer, String word) { this.stage = stage; this.drawer = drawer; this.word = word; }
     }
 
     private static class Player {
         final int id;
         final String username;
-        final String word;
+        // Vị trí trong thứ tự vẽ/đoán của phòng.
+        final int index;
         Consumer<Message> sender;
         boolean online = true;
-        byte[] image;
-        String imagePath;
+        // Bản nháp tranh đang vẽ ở vòng hiện tại.
         byte[] draft;
         long draftAt;
         int score;
@@ -600,8 +664,8 @@ public class GameManager implements AutoCloseable {
         int correctCount;
         long totalGuessNanos;
 
-        Player(int id, String username, String word, Consumer<Message> sender) {
-            this.id = id; this.username = username; this.word = word; this.sender = sender;
+        Player(int id, String username, int index, Consumer<Message> sender) {
+            this.id = id; this.username = username; this.index = index; this.sender = sender;
         }
         double average() { return correctCount == 0 ? Double.POSITIVE_INFINITY : totalGuessNanos / 1_000_000_000.0 / correctCount; }
     }

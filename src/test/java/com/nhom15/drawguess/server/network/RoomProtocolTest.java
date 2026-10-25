@@ -32,8 +32,8 @@ class RoomProtocolTest {
     void fourClientsCompleteDrawingGuessingAndCanStartAnotherMatch() throws Exception {
         AtomicLong clock = new AtomicLong();
         WordDAO words = new WordDAO() {
-            @Override public GamePlan selectWords(int count) {
-                return new GamePlan("Động vật", List.of("Con mèo", "Con chó", "Con voi", "Con hổ").subList(0, count));
+            @Override protected java.util.Map<String, List<String>> loadTopics() {
+                return java.util.Map.of("Động vật", List.of("Con mèo", "Con chó", "Con voi", "Con hổ"));
             }
         };
         DrawingStore store = new DrawingStore(drawingsDirectory);
@@ -247,8 +247,8 @@ class RoomProtocolTest {
     void droppedPlayerLogsInAgainAndReturnsToTheRunningMatch() throws Exception {
         AtomicLong clock = new AtomicLong();
         WordDAO words = new WordDAO() {
-            @Override public GamePlan selectWords(int count) {
-                return new GamePlan("Động vật", List.of("Con mèo", "Con chó", "Con voi").subList(0, count));
+            @Override protected java.util.Map<String, List<String>> loadTopics() {
+                return java.util.Map.of("Động vật", List.of("Con mèo", "Con chó", "Con voi"));
             }
         };
         try (GameManager game = new GameManager(words, new DrawingStore(drawingsDirectory), clock::get, false,

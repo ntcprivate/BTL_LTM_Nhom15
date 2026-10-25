@@ -12,6 +12,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.layout.StackPane;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -39,6 +40,9 @@ public class RoomController {
     private String lastInvitedName;
     // Server vừa đưa người chơi về lại trận đang chơi (sau khi mất kết nối).
     private boolean resumingMatch;
+    // Chat của phòng hiện tại, để màn chơi hiện cả những tin đã nhắn ở phòng chờ.
+    private final List<ChatMessage> roomChat = new ArrayList<>();
+    private static final int CHAT_HISTORY = 200;
 
     public RoomController(StackPane root, UserInfo user, Consumer<Message> send, Runnable logout) {
         this.root = root;
@@ -53,6 +57,13 @@ public class RoomController {
         lobby.setOnInvite(this::invite, () -> send.accept(new Message(MessageType.GET_ONLINE_USERS)));
         roomList.setOnShowOnline(() -> send.accept(new Message(MessageType.GET_ONLINE_USERS)));
         lobby.setOnNotReady(() -> send.accept(new Message(MessageType.CANCEL_READY)));
+        lobby.setOnStagesChanged(stages -> send.accept(new Message(MessageType.SET_STAGES, new ArrayList<>(stages))));
+        lobby.setOnChat(text -> send.accept(new Message(MessageType.CHAT_SEND, text)));
+    }
+
+    private void resetChat() {
+        roomChat.clear();
+        lobby.clearChat();
     }
 
     private void invite(OnlineUser target) {
@@ -203,11 +214,16 @@ public class RoomController {
         }
         if (message.getType() == MessageType.DRAW_WORD && message.getData() instanceof DrawingPrompt prompt
                 && currentRoom != null && currentRoom.getRoomId() == prompt.getRoomId()) {
+            if (game != null && game.isFor(prompt.getMatchId())) {
+                game.nextStage(prompt);
+                return;
+            }
             if (game != null) { game.close(); }
             Map<Integer, String> avatars = currentRoom.getPlayers().stream()
                     .collect(Collectors.toMap(PlayerInfo::getUserId, PlayerInfo::getAvatarKey, (a, b) -> a));
             game = new GameController(root, user.getId(), prompt, avatars, send, this::returnToLobby, this::leave, logout);
             game.setOnPlayAgain(this::playAgain);
+            game.loadChat(roomChat);
             if (resumingMatch) {
                 resumingMatch = false;
                 game.showMessage("Đã vào lại trận. Bạn chơi tiếp từ chỗ đang dở.");
@@ -238,6 +254,18 @@ public class RoomController {
                     roomList.showOnlineUsers(users);
                 }
             }
+            case TOPICS -> {
+                if (message.getData() instanceof List<?> data && data.stream().allMatch(String.class::isInstance)) {
+                    lobby.setTopics(data.stream().map(String.class::cast).toList());
+                }
+            }
+            case CHAT_MESSAGE -> {
+                if (message.getData() instanceof ChatMessage chat && currentRoom != null) {
+                    roomChat.add(chat);
+                    if (roomChat.size() > CHAT_HISTORY) { roomChat.removeFirst(); }
+                    lobby.addChat(chat);
+                }
+            }
             case START_COUNTDOWN -> {
                 if (message.getData() instanceof Integer seconds && currentRoom != null) { lobby.startCountdown(seconds); }
             }
@@ -261,7 +289,9 @@ public class RoomController {
                 if (message.getData() instanceof RoomInfo room) {
                     viewingHistory = false;
                     if (invitationPrompt != null) { invitationPrompt.close(); }
+                    if (currentRoom == null || currentRoom.getRoomId() != room.getRoomId()) { resetChat(); }
                     currentRoom = room;
+                    send.accept(new Message(MessageType.GET_TOPICS));
                     roomList.closeOnlineList();
                     lobby.update(room);
                     // Phòng đang chơi mà vẫn vào được nghĩa là server đưa người chơi về lại trận của mình.
@@ -281,6 +311,7 @@ public class RoomController {
             case KICKED -> {
                 if (game != null) { game.close(); game = null; }
                 currentRoom = null;
+                resetChat();
                 lobby.closeInvitePanel();
                 lobby.stopCountdown();
                 pendingRoomListNotice = "Bạn đã bị chủ phòng mời ra khỏi phòng.";
@@ -295,11 +326,23 @@ public class RoomController {
                     lobby.closeInvitePanel();
                     lobby.stopCountdown();
                     currentRoom = null;
+                    resetChat();
                     showRooms();
                 }
             }
             case JOIN_FAILED, ACTION_FAILED -> {
-                String reason = switch (String.valueOf(message.getData())) {
+                String code = String.valueOf(message.getData());
+                String chatError = GameController.chatError(code);
+                if (chatError != null) {
+                    // Đang ở màn chơi thì GameController đã hiện lỗi trong khung chat của trận.
+                    if (game == null) { lobby.showChatNotice(chatError); }
+                    return;
+                }
+                // Đổi vòng đấu không thành công: hiện lại vòng đấu đúng theo server.
+                if (currentRoom != null && List.of("INVALID_STAGES", "NOT_HOST", "ROOM_PLAYING").contains(code)) {
+                    lobby.update(currentRoom);
+                }
+                String reason = switch (code) {
                     case "ROOM_NOT_FOUND" -> "Phòng không tồn tại.";
                     case "ROOM_FULL" -> "Phòng đã đủ 8 người.";
                     case "ROOM_PLAYING" -> "Phòng đã bắt đầu trận đấu.";
@@ -307,7 +350,8 @@ public class RoomController {
                     case "NOT_IN_ROOM" -> "Bạn chưa tham gia phòng.";
                     case "NOT_LOGGED_IN" -> "Hãy đăng nhập trước khi tham gia phòng.";
                     case "FORBIDDEN" -> "Tài khoản không có quyền tham gia phòng.";
-                    case "NOT_HOST" -> "Chỉ chủ phòng mới được mời người chơi ra.";
+                    case "NOT_HOST" -> "Chỉ chủ phòng mới làm được việc này.";
+                    case "INVALID_STAGES" -> "Vòng đấu không hợp lệ: cần 1–5 vòng và không trùng chủ đề.";
                     case "INVALID_TARGET" -> "Người chơi này không còn trong phòng.";
                     case "TARGET_OFFLINE" -> "Người này không còn online.";
                     case "TARGET_BUSY" -> "Người này đang ở trong một phòng khác.";

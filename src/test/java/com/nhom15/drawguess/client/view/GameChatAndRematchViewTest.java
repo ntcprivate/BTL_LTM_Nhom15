@@ -188,6 +188,43 @@ class GameChatAndRematchViewTest {
         });
     }
 
+    @Test void nextStageClearsTheBoardAndShowsTheNewTopic() throws Exception {
+        ui(() -> {
+            GameView view = game(new ArrayList<>());
+            view.getChat().addHistory(List.of(message(2, "lan", "Tin ở phòng chờ")));
+            assertEquals(0, view.getChat().unreadProperty().get(), "Tin cũ ở phòng chờ không tính là chưa đọc");
+            show(view, 1440, 860);
+            view.showDrawing(new DrawingPrompt(MATCH, 1, "Động vật", "Con mèo", 60, 0, 2));
+            Label category = (Label) view.lookup(".game-header .section-title");
+            assertEquals("Vòng 1/2: Động vật", category.getText());
+            javafx.scene.canvas.Canvas canvas = canvas(view);
+            drag(canvas, 100, 100, 300, 300);
+            view.showRound(new RoundInfo(MATCH, 1, 6, 2, "lan", "Động vật", sampleImage(), 30, "_ _ _", 0, 2), 1);
+            assertFalse(canvas.isVisible());
+
+            view.showDrawing(new DrawingPrompt(MATCH, 1, "Đồ ăn", "Phở", 60, 1, 2));
+            view.applyCss(); view.layout();
+            assertEquals("Vòng 2/2: Đồ ăn", category.getText());
+            assertTrue(canvas.isVisible(), "Ô vẽ hiện lại cho vòng mới");
+            assertFalse(view.lookup(".canvas-frame").getParent().getChildrenUnmodifiable().stream()
+                    .filter(javafx.scene.image.ImageView.class::isInstance).findFirst().orElseThrow().isVisible());
+            assertEquals(0xffffffff, view.captureDrawing()[200 * 500 + 200], "Ô vẽ trắng, không còn nét của vòng trước");
+            assertFalse(view.takeChanges());
+            assertTrue(button(view, "Hoàn tác").isDisabled());
+            assertFalse(view.lookup(".game-hint").isVisible(), "Gợi ý của lượt đoán trước đã ẩn");
+            snapshot(view, "game-next-stage.png");
+
+            view.showRound(new RoundInfo(MATCH, 4, 6, 3, "minh", "Đồ ăn", sampleImage(), 30, "_ _", 1, 2), 1);
+            assertTrue(view.lookupAll(".game-word").stream()
+                    .anyMatch(n -> ((Label) n).getText().equals("Tranh của minh — lượt 2/3")), "Đếm lượt trong vòng");
+        });
+    }
+
+    private static javafx.scene.canvas.Canvas canvas(Parent view) {
+        return (javafx.scene.canvas.Canvas) view.lookup(".canvas-frame").getParent().getChildrenUnmodifiable().stream()
+                .filter(javafx.scene.canvas.Canvas.class::isInstance).findFirst().orElseThrow();
+    }
+
     private static void drag(javafx.scene.canvas.Canvas canvas, double x1, double y1, double x2, double y2) {
         canvas.fireEvent(mouse(javafx.scene.input.MouseEvent.MOUSE_PRESSED, x1, y1));
         canvas.fireEvent(mouse(javafx.scene.input.MouseEvent.MOUSE_DRAGGED, x2, y2));
