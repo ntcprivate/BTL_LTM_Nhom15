@@ -82,8 +82,4 @@ public class SessionManager {
             sessions.remove(userId);
         }
     }
-
-    public synchronized int onlineCount() {
-        return sessions.size();
-    }
 }

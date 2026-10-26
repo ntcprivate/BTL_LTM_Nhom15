@@ -132,8 +132,7 @@ class AdminHistoryViewTest {
                             new PlayerInfo(1, "người_chơi", true, true, "irises"),
                             new PlayerInfo(2, "bạn_chơi", false, true, "almond-blossoms"))),
                     new RoomInfo(3, RoomStatus.PLAYING, List.of(
-                            new PlayerInfo(3, "họa_sĩ", true, true)))), 7);
-            assertEquals("7", ((Label) roomList.lookup("#online-user-count")).getText());
+                            new PlayerInfo(3, "họa_sĩ", true, true)))));
             snapshot(page(roomList), "rooms.png");
 
             LobbyView lobby = new LobbyView(1, ()->{}, ()->{}, ()->{}, ignored->{});
