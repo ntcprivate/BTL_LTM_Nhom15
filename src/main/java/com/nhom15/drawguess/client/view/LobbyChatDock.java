@@ -113,7 +113,7 @@ public class LobbyChatDock extends VBox {
     public void add(ChatMessage message) {
         chat.add(message);
         boolean mine = message.getUserId() == userId;
-        previewName.setText(mine ? "Bạn" : message.getUsername());
+        previewName.setText((mine ? "Bạn" : message.getUsername()) + " · " + ChatPanel.formatTime(message.getSentAt()));
         previewName.setVisible(true);
         previewName.setManaged(true);
         previewText.setText(message.getText());

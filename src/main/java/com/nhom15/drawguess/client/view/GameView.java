@@ -35,7 +35,10 @@ public class GameView extends BorderPane {
     private final Map<Integer, String> avatars;
     private final Canvas canvas = new Canvas(500, 500);
     private final ImageView picture = new ImageView();
-    private final VBox resultPanel = new VBox(14);
+    private final VBox resultPanel = new VBox(10);
+    // Kết quả đang hiện và phần đang xem (xếp hạng người đoán hay người vẽ).
+    private GameResult result;
+    private boolean drawerRanking;
     private final Label category = new Label();
     private final Label word = new Label();
     private final Label hint = new Label();
@@ -688,7 +691,9 @@ public class GameView extends BorderPane {
         timer.setText("Trận đấu kết thúc");
         status.setText("Kết quả đã được xếp hạng. Bấm Chơi lại để vào ván mới cùng cả phòng.");
         UiTheme.status(status, "success");
-        renderPodium(result.getPlayers());
+        this.result = result;
+        drawerRanking = false;
+        renderResult();
         canvas.setVisible(false);
         picture.setVisible(false);
         resultPanel.setVisible(true);
@@ -702,52 +707,141 @@ public class GameView extends BorderPane {
         playAgain.setManaged(true);
     }
 
-    // Bục 1-2-3 cho ba người đứng đầu, những người còn lại liệt kê bên dưới.
-    private void renderPodium(List<ScoreEntry> players) {
+    // Một dòng xếp hạng ở màn kết quả: số chính (điểm / lượt đoán trúng) và dòng phụ (thời gian trung bình...).
+    private record RankRow(int userId, String username, int rank, String main, String detail) {}
+
+    // Bảng kết quả có hai phần để chọn: xếp hạng người đoán (tổng điểm) và xếp hạng người vẽ.
+    private void renderResult() {
         Label title = new Label("Kết quả trận đấu");
         title.getStyleClass().add("result-title");
-        String winners = players.stream().filter(p -> p.getRank() == 1).map(ScoreEntry::getUsername)
-                .reduce((a, b) -> a + ", " + b).orElse("");
-        Label winner = new Label(winners.isEmpty() ? "" : "Người thắng: " + winners);
-        winner.getStyleClass().add("result-winner");
-        if (!winners.isEmpty()) { Icons.attach(winner, Icons.Glyph.STAR, 16); }
-        winner.setWrapText(true);
-        HBox podium = new HBox(14);
-        podium.setAlignment(Pos.BOTTOM_CENTER);
-        int[] order = {1, 0, 2};
-        for (int index : order) {
-            if (index < players.size()) { podium.getChildren().add(podiumColumn(players.get(index), index)); }
-        }
-        VBox others = new VBox(6);
-        others.setAlignment(Pos.CENTER);
-        for (int index = 3; index < players.size(); index++) {
-            ScoreEntry player = players.get(index);
-            Label row = new Label(player.getRank() + ".  " + player.getUsername() + "  —  " + player.getScore() + " điểm");
-            row.getStyleClass().add("result-other");
-            others.getChildren().add(row);
-        }
+        ToggleGroup group = new ToggleGroup();
+        HBox tabs = new HBox(4, rankingTab("Người đoán", Icons.Glyph.STAR, false, group),
+                rankingTab("Người vẽ", Icons.Glyph.SPARKLE, true, group));
+        tabs.getStyleClass().add("result-tabs");
+        tabs.setMaxWidth(Region.USE_PREF_SIZE);
+        // Server cũ không gửi bảng người vẽ thì chỉ có một bảng, không cần chọn.
+        boolean both = !result.getDrawers().isEmpty();
+        tabs.setVisible(both);
+        tabs.setManaged(both);
         rematch.getStyleClass().add("rematch-status");
         rematch.setWrapText(true);
         rematch.setVisible(false);
         rematch.setManaged(false);
-        resultPanel.getChildren().setAll(title, winner, rematch, podium, others);
+        Label caption = new Label();
+        caption.getStyleClass().add("result-caption");
+        caption.setWrapText(true);
+        caption.setMinHeight(Region.USE_PREF_SIZE);
+        VBox body = new VBox(8);
+        body.setAlignment(Pos.TOP_CENTER);
+        VBox.setVgrow(body, Priority.ALWAYS);
+        resultPanel.getChildren().setAll(title, tabs, rematch, caption, body);
+        renderRanking(caption, body);
+        group.selectedToggleProperty().addListener((observable, before, selected) -> {
+            // Bấm lại phần đang xem thì giữ nguyên lựa chọn.
+            if (selected == null) { before.setSelected(true); return; }
+            drawerRanking = Boolean.TRUE.equals(selected.getUserData());
+            renderRanking(caption, body);
+        });
     }
 
-    private VBox podiumColumn(ScoreEntry player, int place) {
-        AvatarView avatar = new AvatarView(avatars.get(player.getUserId()), place == 0 ? 72 : 58);
-        Label name = new Label(player.getUsername() + (player.getUserId() == userId ? " (Bạn)" : ""));
+    private ToggleButton rankingTab(String text, Icons.Glyph glyph, boolean drawers, ToggleGroup group) {
+        ToggleButton tab = Icons.attach(new ToggleButton(text), glyph, 15);
+        tab.getStyleClass().add("result-tab");
+        tab.setUserData(drawers);
+        tab.setToggleGroup(group);
+        tab.setSelected(drawerRanking == drawers);
+        tab.setAccessibleText(drawers ? "Xem xếp hạng người vẽ" : "Xem xếp hạng người đoán");
+        return tab;
+    }
+
+    private void renderRanking(Label caption, VBox body) {
+        List<RankRow> rows = drawerRanking ? drawerRows(result.getDrawers()) : guesserRows(result.getPlayers());
+        caption.setText(drawerRanking
+                ? "Xếp theo số lượt đoán trúng, rồi ít bị báo cáo, rồi được đoán ra nhanh (TB)."
+                : "Xếp theo điểm; bằng điểm thì ai đoán đúng nhanh hơn (TB) xếp trên.");
+        // Người vẽ chưa có tranh nào được đoán trúng thì không gọi là vẽ đẹp nhất.
+        String leaders = rows.stream()
+                .filter(row -> row.rank() == 1)
+                .filter(row -> !drawerRanking || result.getDrawers().stream()
+                        .anyMatch(d -> d.getUserId() == row.userId() && d.getSolvedCount() > 0))
+                .map(RankRow::username).reduce((a, b) -> a + ", " + b).orElse("");
+        Label winner = new Label(leaders.isEmpty()
+                ? (drawerRanking ? "Chưa có tranh nào được đoán trúng" : "")
+                : (drawerRanking ? "Vẽ đẹp nhất: " : "Người thắng: ") + leaders);
+        winner.getStyleClass().add("result-winner");
+        if (!leaders.isEmpty()) { Icons.attach(winner, drawerRanking ? Icons.Glyph.SPARKLE : Icons.Glyph.STAR, 16); }
+        winner.setWrapText(true);
+        winner.setMinHeight(Region.USE_PREF_SIZE);
+        // Bục 1-2-3 cho ba người đứng đầu, những người còn lại liệt kê bên dưới (cuộn được).
+        HBox podium = new HBox(12);
+        podium.setAlignment(Pos.BOTTOM_CENTER);
+        podium.setMinHeight(Region.USE_PREF_SIZE);
+        int[] order = {1, 0, 2};
+        for (int index : order) {
+            if (index < rows.size()) { podium.getChildren().add(podiumColumn(rows.get(index), index)); }
+        }
+        VBox others = new VBox(4);
+        others.setAlignment(Pos.TOP_CENTER);
+        for (int index = 3; index < rows.size(); index++) {
+            RankRow row = rows.get(index);
+            Label line = new Label(row.rank() + ".  " + row.username() + "  —  " + row.main() + "  ·  " + row.detail());
+            line.getStyleClass().add("result-other");
+            line.setWrapText(true);
+            line.setMinHeight(Region.USE_PREF_SIZE);
+            others.getChildren().add(line);
+        }
+        ScrollPane list = new ScrollPane(others);
+        list.setFitToWidth(true);
+        list.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        list.getStyleClass().add("result-others");
+        list.setFocusTraversable(false);
+        list.setVisible(!others.getChildren().isEmpty());
+        list.setManaged(!others.getChildren().isEmpty());
+        list.setMinHeight(0);
+        VBox.setVgrow(list, Priority.ALWAYS);
+        body.getChildren().setAll(winner, podium, list);
+    }
+
+    private static List<RankRow> guesserRows(List<ScoreEntry> players) {
+        return players.stream().map(p -> new RankRow(p.getUserId(), p.getUsername(), p.getRank(),
+                p.getScore() + " điểm", Double.isFinite(p.getAverageGuessTime())
+                        ? "TB đoán " + seconds(p.getAverageGuessTime()) : "Chưa đoán đúng")).toList();
+    }
+
+    private static List<RankRow> drawerRows(List<DrawerEntry> drawers) {
+        return drawers.stream().map(d -> {
+            String detail = Double.isFinite(d.getAverageSolveTime())
+                    ? "TB đoán ra sau " + seconds(d.getAverageSolveTime()) : "Chưa ai đoán trúng";
+            if (d.getRejectedCount() > 0) { detail += " · " + d.getRejectedCount() + " bị báo cáo"; }
+            return new RankRow(d.getUserId(), d.getUsername(), d.getRank(), d.getSolvedCount() + " lượt đoán trúng", detail);
+        }).toList();
+    }
+
+    static String seconds(double value) {
+        return String.format("%.1f giây", value);
+    }
+
+    private VBox podiumColumn(RankRow row, int place) {
+        AvatarView avatar = new AvatarView(avatars.get(row.userId()), place == 0 ? 54 : 46);
+        Label name = new Label(row.username() + (row.userId() == userId ? " (Bạn)" : ""));
         name.getStyleClass().add("podium-name");
         name.setMaxWidth(Double.MAX_VALUE);
         name.setAlignment(Pos.CENTER);
-        Label points = new Label(player.getScore() + " điểm");
+        Label points = new Label(row.main());
         points.getStyleClass().add("podium-score");
-        Label rank = new Label(String.valueOf(player.getRank()));
+        Label detail = new Label(row.detail());
+        detail.getStyleClass().add("podium-detail");
+        detail.setWrapText(true);
+        detail.setMaxWidth(Double.MAX_VALUE);
+        detail.setAlignment(Pos.CENTER);
+        detail.setMinHeight(Region.USE_PREF_SIZE);
+        Label rank = new Label(String.valueOf(row.rank()));
         rank.getStyleClass().add("podium-rank");
         StackPane step = new StackPane(rank);
         step.getStyleClass().addAll("podium-step", "podium-step-" + (place + 1));
-        step.setPrefSize(130, switch (place) { case 0 -> 130; case 1 -> 96; default -> 72; });
+        step.setPrefSize(130, switch (place) { case 0 -> 64; case 1 -> 48; default -> 36; });
         step.setMaxHeight(Region.USE_PREF_SIZE);
-        VBox column = new VBox(6, avatar, name, points, step);
+        VBox column = new VBox(3, avatar, name, points, detail, step);
         column.setAlignment(Pos.BOTTOM_CENTER);
         column.setPrefWidth(130);
         return column;

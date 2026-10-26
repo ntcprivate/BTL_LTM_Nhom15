@@ -40,6 +40,10 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
   - Người đã báo cáo thì không đoán tiếp tranh đó. Lượt kết thúc sớm khi mọi người đoán đều đã đoán đúng, hết 3 lần đoán, hoặc đã báo cáo.
 - **Điểm theo tốc độ**: đoán đúng trong 10 giây đầu được 3 điểm, 10 giây tiếp theo 2 điểm, sau đó 1 điểm; người đoán đúng đầu tiên được thêm 1 điểm; người vẽ được 1 điểm cho mỗi người đoán đúng.
 - **Trò chuyện** trong trận: khung chat bên trái ô vẽ (cửa sổ hẹp thì nằm trong thẻ "Trò chuyện" cạnh bảng điểm). Server chặn tin nhắn để lộ từ khóa chưa công bố (kể cả viết không dấu hoặc viết liền) và chặn gửi quá dồn dập.
+- Mỗi tin nhắn (trong trận và ở phòng chờ) hiện **giờ gửi** theo giờ máy người xem: `14:05` nếu là hôm nay, kèm ngày nếu là hôm khác.
+- **Màn kết quả có hai bảng xếp hạng** để chọn:
+  - **Người đoán**: xếp theo điểm; bằng điểm thì ai có thời gian đoán đúng trung bình (TB) ngắn hơn xếp trên. Mỗi người có hiện thời gian đoán đúng trung bình của mình.
+  - **Người vẽ**: xếp theo số lượt người khác đoán trúng tranh của mình, rồi ít tranh bị báo cáo hơn, rồi tranh được đoán ra nhanh hơn (TB). Lượt đoán trúng trên tranh bị báo cáo không được tính. Bảng này chỉ có ở màn kết quả, không lưu vào lịch sử.
 - **Chơi lại**: màn kết quả có nút **Chơi lại** (về phòng chờ và tự báo sẵn sàng) và dòng "2/3 người muốn chơi lại • Đang chờ: …". Cả phòng cùng bấm thì đếm ngược 5 giây rồi vào ván mới.
 - Lịch sử trận: thời gian, người tham gia, điểm, thứ hạng, từng vòng và các lượt đoán.
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.

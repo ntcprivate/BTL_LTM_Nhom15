@@ -136,7 +136,8 @@ class LobbyStagesAndChatViewTest {
             lobby.addChat(new ChatMessage(2, "lan", "Chào cả nhà!", 0));
             lobby.addChat(new ChatMessage(3, "minh", "Chơi 2 vòng nhé, vòng 2 ngẫu nhiên cho vui", 0));
             lobby.applyCss(); lobby.layout();
-            assertEquals("minh", ((Label) lobby.lookup(".chat-dock-name")).getText());
+            assertEquals("minh · " + ChatPanel.formatTime(0), ((Label) lobby.lookup(".chat-dock-name")).getText(),
+                    "Dòng tin mới nhất có tên người gửi và giờ gửi");
             assertEquals("Chơi 2 vòng nhé, vòng 2 ngẫu nhiên cho vui", ((Label) lobby.lookup(".chat-dock-text")).getText());
             Label badge = (Label) lobby.lookup(".chat-dock-badge");
             assertTrue(badge.isVisible());
