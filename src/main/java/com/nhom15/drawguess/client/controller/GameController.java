@@ -1,6 +1,7 @@
 package com.nhom15.drawguess.client.controller;
 
 import com.nhom15.drawguess.client.view.GameView;
+import com.nhom15.drawguess.client.view.Sounds;
 import com.nhom15.drawguess.client.view.UiTheme;
 import com.nhom15.drawguess.common.protocol.*;
 import javafx.animation.Animation;
@@ -29,6 +30,9 @@ public class GameController {
     private int round = -1;
     private boolean uploadRequested;
     private volatile boolean closed;
+    // Giây cuối cùng đã phát tiếng tích tắc (server có thể gửi cùng một giây hai lần).
+    private int lastTick = -1;
+    private static final int TICK_SECONDS = 5;
     private final Timeline drafts = new Timeline(new KeyFrame(Duration.seconds(DRAFT_SECONDS), event -> sendDraft()));
 
     public GameController(StackPane root, int userId, DrawingPrompt prompt, Map<Integer, String> avatars,
@@ -43,6 +47,7 @@ public class GameController {
         UiTheme.show(root, view);
         drafts.setCycleCount(Animation.INDEFINITE);
         drafts.play();
+        if (prompt.getSeconds() > 0) { Sounds.play(Sounds.Effect.START); }
     }
 
     public void showMessage(String message) {
@@ -59,6 +64,7 @@ public class GameController {
         round = -1;
         view.showDrawing(prompt);
         drafts.playFromStart();
+        Sounds.play(Sounds.Effect.START);
     }
 
     // Tin nhắn ở phòng chờ trước khi vào trận.
@@ -148,7 +154,10 @@ public class GameController {
                 }
             }
             case TIME_UPDATE -> {
-                if (message.getData() instanceof TimerInfo timer && matchId.equals(timer.getMatchId())) { view.updateTimer(timer); }
+                if (message.getData() instanceof TimerInfo timer && matchId.equals(timer.getMatchId())) {
+                    view.updateTimer(timer);
+                    tick(timer);
+                }
             }
             case ROUND_START -> {
                 if (message.getData() instanceof RoundInfo info && matchId.equals(info.getMatchId())) {
@@ -163,14 +172,22 @@ public class GameController {
             }
             case GUESS_RESULT -> {
                 if (message.getData() instanceof GuessResult result && matchId.equals(result.getMatchId())
-                        && result.getRoundIndex() == round) { view.showGuessResult(result); }
+                        && result.getRoundIndex() == round) {
+                    view.showGuessResult(result);
+                    if (result.isCorrect()) { Sounds.play(Sounds.Effect.CORRECT); }
+                    else if ("WRONG_ANSWER".equals(result.getReason())) { Sounds.play(Sounds.Effect.WRONG); }
+                }
             }
             case SCORE_UPDATE -> {
                 if (message.getData() instanceof List<?> scores && scores.stream().allMatch(ScoreEntry.class::isInstance)) {
                     view.updateScores(scores.stream().map(ScoreEntry.class::cast).toList());
                 }
             }
-            case TIME_UP, GAME_END -> view.lockGuess();
+            case TIME_UP -> {
+                view.lockGuess();
+                Sounds.play(Sounds.Effect.TIME_UP);
+            }
+            case GAME_END -> view.lockGuess();
             case ANSWER -> {
                 if (message.getData() instanceof RoundAnswer answer && matchId.equals(answer.getMatchId())
                         && answer.getRoundIndex() == round) {
@@ -183,7 +200,10 @@ public class GameController {
                         && status.getRoundIndex() == round) { view.showReportStatus(status); }
             }
             case GAME_RESULT -> {
-                if (message.getData() instanceof GameResult result && matchId.equals(result.getMatchId())) { view.showResult(result); }
+                if (message.getData() instanceof GameResult result && matchId.equals(result.getMatchId())) {
+                    view.showResult(result);
+                    Sounds.play(Sounds.Effect.RESULT);
+                }
             }
             case ACTION_SUCCESS -> {
                 if ("DRAW_UPLOAD".equals(message.getData())) { view.showMessage("Đã gửi tranh. Đang chờ các người chơi khác."); }
@@ -203,6 +223,14 @@ public class GameController {
             }
             default -> { }
         }
+    }
+
+    // Tích tắc 5 giây cuối khi đang vẽ hoặc đang đoán.
+    private void tick(TimerInfo timer) {
+        boolean active = timer.getPhase() == GamePhase.DRAWING || timer.getPhase() == GamePhase.GUESSING;
+        int seconds = timer.getSeconds();
+        if (active && seconds > 0 && seconds <= TICK_SECONDS && seconds != lastTick) { Sounds.play(Sounds.Effect.TICK); }
+        lastTick = seconds;
     }
 
     public static String chatError(String reason) {

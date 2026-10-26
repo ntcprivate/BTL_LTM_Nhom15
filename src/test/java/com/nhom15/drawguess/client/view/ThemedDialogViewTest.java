@@ -203,7 +203,7 @@ class ThemedDialogViewTest {
 
             Dialog<ButtonType> panel = ThemedDialog.create(owner, ThemedDialog.Tone.INFO, Icons.Glyph.USER_PLUS, "Mời người chơi", null,
                     new ButtonType("Đóng", ButtonBar.ButtonData.CANCEL_CLOSE));
-            panel.initModality(javafx.stage.Modality.NONE);
+            ThemedDialog.asPanel(panel);
             panel.show();
             assertEquals(0, root.lookupAll(".dialog-scrim").size(), "Danh sách mời không chặn nên không làm tối");
             panel.close();

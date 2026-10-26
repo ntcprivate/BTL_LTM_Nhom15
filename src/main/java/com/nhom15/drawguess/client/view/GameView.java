@@ -138,7 +138,7 @@ public class GameView extends BorderPane {
         playAgain.setTooltip(new Tooltip("Về phòng chờ và báo sẵn sàng cho ván mới"));
         leave.getStyleClass().add("ghost-button");
         logout.getStyleClass().add("danger-button");
-        HBox navigation = new HBox(8, playAgain, back, leave, logout);
+        HBox navigation = new HBox(8, Sounds.toggleButton(), playAgain, back, leave, logout);
         navigation.setAlignment(Pos.CENTER_RIGHT);
         navigation.getChildren().forEach(node -> ((Region) node).setMinWidth(Region.USE_PREF_SIZE));
 

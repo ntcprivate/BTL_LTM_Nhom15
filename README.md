@@ -22,6 +22,13 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
   - Khi thu gọn, khung chat chỉ hiện tin nhắn mới nhất và số tin chưa đọc.
   - Bấm biểu tượng chat để mở toàn bộ đoạn chat. Đoạn chat chiếm cả cột bên phải và có nút "Thu gọn".
   - Tin nhắn ở phòng chờ được chuyển sang khung chat của màn chơi.
+- **Âm thanh**:
+  - Có âm báo ngắn khi: đếm ngược vào trận, bắt đầu vẽ hoặc sang vòng mới, 5 giây cuối mỗi lượt, đoán đúng/sai, hết giờ, có kết quả trận, có tin nhắn của người khác và có lời mời.
+  - Nút loa ở trang chủ, danh sách phòng, phòng chờ và màn chơi dùng để tắt/bật tiếng. Lựa chọn được nhớ cho lần mở game sau.
+  - Âm báo do nhóm tự tạo bằng code (`src/main/resources/sounds`), không dùng nhạc có bản quyền.
+- **Hộp thông báo**:
+  - Bấm ra ngoài hộp thông báo, hoặc nhấn Esc, thì đóng hộp. Cách này giống bấm nút hủy/đóng; với lời mời thì tính là từ chối.
+  - Bấm ra ngoài danh sách người online thì đóng danh sách, và cú bấm vẫn có tác dụng ở màn hình phía sau.
 - **Giữ tranh khi mất kết nối lúc đang vẽ**:
   - Trong lúc vẽ, client gửi bản nháp tranh lên server mỗi 2 giây, nhưng chỉ khi có nét mới.
   - Người vào lại kịp sẽ thấy tranh dở và vẽ tiếp được.

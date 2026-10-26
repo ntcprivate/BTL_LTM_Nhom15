@@ -25,6 +25,7 @@ public class ClientMain extends Application {
         root.getChildren().addAll(backdrop, content);
         backdrop.followContent(content);
         UiTheme.fitPadding(content);
+        com.nhom15.drawguess.client.view.Sounds.preload();
         authController = new AuthController(content, new TCPClient());
         stage.setTitle("Draw and Guess • Starry Studio");
         Scene scene = new Scene(root, 1100, 800);

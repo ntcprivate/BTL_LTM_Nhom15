@@ -38,6 +38,8 @@ public final class Icons {
         PLUS("M12 5v14M5 12h14", false),
         LAYERS("M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5", false),
         CHEVRON_DOWN("M6 9l6 6 6-6", false),
+        VOLUME("M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14", false),
+        VOLUME_OFF("M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6", false),
         SPARKLE("M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8"
                 + "a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z", true),
         EYE("M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7zM12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z", false),

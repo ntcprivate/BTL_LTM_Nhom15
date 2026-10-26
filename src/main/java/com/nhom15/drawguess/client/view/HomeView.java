@@ -41,7 +41,7 @@ public final class HomeView extends VBox {
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
         ArtworkCard painting = new ArtworkCard(
                 "/images/View-of-the-Sea-at-Scheveningen.jpg", "View of the Sea at Scheveningen", 330, 104);
-        HBox header = new HBox(16, avatar, identity, headerSpacer, painting);
+        HBox header = new HBox(16, avatar, identity, headerSpacer, Sounds.toggleButton(), painting);
         header.setAlignment(Pos.CENTER_LEFT);
 
         Label sectionTitle = new Label("Bạn muốn làm gì hôm nay?");
