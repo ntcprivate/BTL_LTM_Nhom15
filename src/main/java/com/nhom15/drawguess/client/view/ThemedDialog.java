@@ -5,6 +5,7 @@ import javafx.animation.Interpolator;
 import javafx.animation.ParallelTransition;
 import javafx.animation.RotateTransition;
 import javafx.animation.ScaleTransition;
+import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -17,6 +18,9 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogEvent;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -47,6 +51,8 @@ public final class ThemedDialog {
     // Thứ tự nút của Windows (nút chính trước, nút hủy sau) nhưng không có khoảng trống co giãn,
     // để CSS căn cả hàng nút vào giữa (ButtonBar bỏ qua khoảng co giãn ở cuối nên "+...+" không căn giữa được).
     private static final String CENTERED_BUTTON_ORDER = "L_E_U_FBXI_YNOCAH_R";
+    // Đánh dấu hộp thoại dạng bảng (không làm tối phía sau, vẫn thao tác được phía sau).
+    private static final String PANEL = "themed-dialog-panel";
 
     // Cách hiện hộp thoại xác nhận; test thay bằng hàm trả lời sẵn để không phải chờ người bấm.
     static Function<Dialog<ButtonType>, Optional<ButtonType>> presenter = Dialog::showAndWait;
@@ -71,6 +77,11 @@ public final class ThemedDialog {
         dialog.setHeaderText(title);
         dialog.initStyle(StageStyle.TRANSPARENT);
         if (owner != null) { dialog.initOwner(owner); }
+        // Lớp tối phía sau thay cho việc khóa cửa sổ chính, để bấm ra ngoài hộp thoại thì đóng được nó
+        // (cửa sổ bị khóa thì không nhận được cú bấm). Không có lớp tối thì vẫn khóa như cũ.
+        if (owner != null && owner.getScene() != null && owner.getScene().getRoot() instanceof StackPane) {
+            dialog.initModality(Modality.NONE);
+        }
 
         DialogPane pane = dialog.getDialogPane();
         UiTheme.apply(pane);
@@ -195,18 +206,56 @@ public final class ThemedDialog {
         });
     }
 
-    // Hộp thoại chặn thao tác thì làm tối màn hình phía sau để mắt tập trung vào hộp thoại.
-    // Hộp thoại không chặn (danh sách mời) thì không phủ, vì người dùng vẫn thao tác phía sau.
+    // Hộp thoại dạng bảng (danh sách người online): không làm tối phía sau và vẫn thao tác được phía sau.
+    public static void asPanel(Dialog<?> dialog) {
+        dialog.initModality(Modality.NONE);
+        dialog.getDialogPane().getStyleClass().add(PANEL);
+    }
+
+    // Bấm ra ngoài hộp thoại thì đóng nó, giống bấm nút hủy/đóng (lời mời: coi như từ chối).
+    static void dismiss(Dialog<?> dialog) {
+        if (!dialog.isShowing()) { return; }
+        DialogPane pane = dialog.getDialogPane();
+        for (ButtonType type : pane.getButtonTypes()) {
+            if (type.getButtonData().isCancelButton() && pane.lookupButton(type) instanceof Button cancel) {
+                cancel.fire();
+                return;
+            }
+        }
+        dialog.close();
+    }
+
+    // Hộp thoại chặn thao tác thì làm tối màn hình phía sau để mắt tập trung vào hộp thoại; bấm vào lớp tối để đóng.
+    // Hộp thoại dạng bảng thì không phủ, vì người dùng vẫn thao tác phía sau; bấm ra ngoài cũng đóng nó.
     private static void attachScrim(Dialog<?> dialog) {
         Window owner = dialog.getOwner();
-        if (dialog.getModality() == Modality.NONE || owner == null || owner.getScene() == null
-                || !(owner.getScene().getRoot() instanceof StackPane root)) {
+        if (owner == null || owner.getScene() == null) { return; }
+        Scene ownerScene = owner.getScene();
+        if (dialog.getDialogPane().getStyleClass().contains(PANEL)) {
+            // Cú bấm vẫn tới phía sau (ví dụ bấm "Sẵn sàng" thì vừa đóng danh sách vừa sẵn sàng).
+            EventHandler<MouseEvent> outside = event -> dismiss(dialog);
+            ownerScene.addEventFilter(MouseEvent.MOUSE_PRESSED, outside);
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> ownerScene.removeEventFilter(MouseEvent.MOUSE_PRESSED, outside));
             return;
         }
+        if (!(ownerScene.getRoot() instanceof StackPane root)) { return; }
         Region scrim = new Region();
         UiTheme.apply(scrim);
         scrim.getStyleClass().add("dialog-scrim");
+        scrim.setOnMousePressed(event -> {
+            event.consume();
+            dismiss(dialog);
+        });
         root.getChildren().add(scrim);
+        // Cửa sổ chính không bị khóa nữa nên có thể được chọn lại (bấm thanh tiêu đề, Alt+Tab). Chặn phím ở đó để
+        // không lọt xuống màn hình phía sau; Esc thì đóng hộp thoại. Không giật focus về hộp thoại, vì Windows
+        // sẽ bỏ luôn cú bấm chuột đang kích hoạt cửa sổ chính và lớp tối không nhận được cú bấm ra ngoài.
+        EventHandler<KeyEvent> blockKeys = event -> {
+            event.consume();
+            if (event.getEventType() == KeyEvent.KEY_PRESSED && event.getCode() == KeyCode.ESCAPE) { dismiss(dialog); }
+        };
+        ownerScene.addEventFilter(KeyEvent.ANY, blockKeys);
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> ownerScene.removeEventFilter(KeyEvent.ANY, blockKeys));
         if (!UiTheme.reducedMotion()) {
             FadeTransition fade = new FadeTransition(Duration.millis(150), scrim);
             fade.setFromValue(0);

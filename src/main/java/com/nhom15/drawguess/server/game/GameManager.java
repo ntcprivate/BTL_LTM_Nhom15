@@ -210,6 +210,8 @@ public class GameManager implements AutoCloseable {
                 player.solved = true;
                 player.correctCount++;
                 player.totalGuessNanos += receivedAt - match.roundStarted;
+                turn.solves++;
+                turn.solveNanos += receivedAt - match.roundStarted;
                 earned = speedPoints(receivedAt - match.roundStarted);
                 player.score += earned;
                 if (match.firstCorrect == null) {
@@ -318,6 +320,7 @@ public class GameManager implements AutoCloseable {
     private void applyReports(Match match) {
         if (!match.drawingRejected && validReports(match) >= reportsNeeded(match)) {
             match.drawingRejected = true;
+            match.current().rejected = true;
             match.current().drawer.score -= match.drawerRoundPoints;
             match.drawerRoundPoints = 0;
             persist(match);
@@ -514,7 +517,7 @@ public class GameManager implements AutoCloseable {
         }
         persist(match);
         broadcast(match, MessageType.GAME_END, match.id);
-        broadcast(match, MessageType.GAME_RESULT, new GameResult(match.id, scores(match, true)));
+        broadcast(match, MessageType.GAME_RESULT, new GameResult(match.id, scores(match, true), drawers(match)));
         match.finished.run();
     }
 
@@ -563,6 +566,37 @@ public class GameManager implements AutoCloseable {
             result.add(new ScoreEntry(player.id, player.username, player.score, ranked ? rank : 0,
                     player.average(), player.online, solvedRound));
             previous = player;
+        }
+        return result;
+    }
+
+    // Xếp hạng người vẽ: nhiều lượt đoán trúng tranh hơn, ít tranh bị báo cáo hơn, rồi được đoán ra nhanh hơn.
+    // Lượt đoán trúng ở tranh bị báo cáo không được tính, giống như người vẽ không được điểm từ tranh đó.
+    private List<DrawerEntry> drawers(Match match) {
+        Map<Player, int[]> counts = new LinkedHashMap<>();
+        Map<Player, Long> nanos = new LinkedHashMap<>();
+        for (Player player : match.order) { counts.put(player, new int[2]); nanos.put(player, 0L); }
+        for (Turn turn : match.turns) {
+            int[] count = counts.get(turn.drawer);
+            if (turn.rejected) { count[1]++; continue; }
+            count[0] += turn.solves;
+            nanos.merge(turn.drawer, turn.solveNanos, Long::sum);
+        }
+        Map<Player, Double> average = new LinkedHashMap<>();
+        counts.forEach((player, count) -> average.put(player,
+                count[0] == 0 ? Double.POSITIVE_INFINITY : nanos.get(player) / 1_000_000_000.0 / count[0]));
+        List<Player> ordered = new ArrayList<>(match.order);
+        Comparator<Player> order = Comparator.comparingInt((Player p) -> counts.get(p)[0]).reversed()
+                .thenComparingInt(p -> counts.get(p)[1])
+                .thenComparingDouble(average::get);
+        ordered.sort(order);
+        List<DrawerEntry> result = new ArrayList<>();
+        int rank = 0;
+        for (int i = 0; i < ordered.size(); i++) {
+            Player player = ordered.get(i);
+            if (i == 0 || order.compare(ordered.get(i - 1), player) != 0) { rank = i + 1; }
+            result.add(new DrawerEntry(player.id, player.username, rank, counts.get(player)[0], counts.get(player)[1],
+                    average.get(player), player.online));
         }
         return result;
     }
@@ -652,6 +686,10 @@ public class GameManager implements AutoCloseable {
         byte[] image;
         String imagePath;
         final List<HistoryData.Guess> guesses = new ArrayList<>();
+        // Số người đoán trúng tranh này, tổng thời gian họ cần, và tranh có bị báo cáo loại không.
+        int solves;
+        long solveNanos;
+        boolean rejected;
 
         Turn(int stage, Player drawer, String word) { this.stage = stage; this.drawer = drawer; this.word = word; }
     }

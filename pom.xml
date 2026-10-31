@@ -32,7 +32,14 @@
             <artifactId>javafx-controls</artifactId>
             <version>${javafx.version}</version>
         </dependency>
-        
+
+        <!-- Âm thanh hiệu ứng trong game (AudioClip) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-media</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
@@ -46,6 +53,12 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- Chạy test không phát âm thanh ra loa. -->
+                        <drawguess.silent>true</drawguess.silent>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
 
             <plugin>

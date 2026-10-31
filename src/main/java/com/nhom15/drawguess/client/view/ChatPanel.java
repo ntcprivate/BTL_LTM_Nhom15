@@ -19,6 +19,11 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.function.Consumer;
 
 // Khung trò chuyện của phòng: danh sách tin nhắn và ô nhập. Tin của mình nằm bên phải, tô vàng;
@@ -26,6 +31,8 @@ import java.util.function.Consumer;
 public class ChatPanel extends VBox {
     public static final int MAX_LENGTH = 200;
     private static final int MAX_MESSAGES = 200;
+    private static final DateTimeFormatter TODAY = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter OTHER_DAY = DateTimeFormatter.ofPattern("HH:mm dd/MM");
     private final int userId;
     private final ListView<ChatMessage> list = new ListView<>();
     private final TextField input = new TextField();
@@ -137,14 +144,25 @@ public class ChatPanel extends VBox {
         return input;
     }
 
+    // Giờ gửi tin theo giờ máy người xem: "14:05" nếu là hôm nay, kèm ngày nếu là hôm khác.
+    public static String formatTime(long sentAt) {
+        LocalDateTime time = LocalDateTime.ofInstant(Instant.ofEpochMilli(sentAt), ZoneId.systemDefault());
+        return time.format(time.toLocalDate().equals(LocalDate.now()) ? TODAY : OTHER_DAY);
+    }
+
     private class MessageCell extends ListCell<ChatMessage> {
         private final Label name = new Label();
+        private final Label time = new Label();
         private final Label text = new Label();
-        private final VBox bubble = new VBox(2, name, text);
+        private final HBox header = new HBox(8, name, time);
+        private final VBox bubble = new VBox(2, header, text);
         private final HBox row = new HBox(bubble);
 
         MessageCell() {
             name.getStyleClass().add("chat-name");
+            time.getStyleClass().add("chat-time");
+            time.setMinWidth(Region.USE_PREF_SIZE);
+            header.setAlignment(Pos.BASELINE_LEFT);
             text.getStyleClass().add("chat-text");
             text.setWrapText(true);
             text.setMinHeight(Region.USE_PREF_SIZE);
@@ -163,11 +181,13 @@ public class ChatPanel extends VBox {
             }
             boolean mine = message.getUserId() == userId;
             name.setText(mine ? "Bạn" : message.getUsername());
+            String sent = formatTime(message.getSentAt());
+            time.setText(sent);
             text.setText(message.getText());
             bubble.getStyleClass().removeAll("chat-mine", "chat-theirs");
             bubble.getStyleClass().add(mine ? "chat-mine" : "chat-theirs");
             row.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
-            setAccessibleText((mine ? "Bạn" : message.getUsername()) + ": " + message.getText());
+            setAccessibleText((mine ? "Bạn" : message.getUsername()) + ", lúc " + sent + ": " + message.getText());
             setGraphic(row);
         }
     }

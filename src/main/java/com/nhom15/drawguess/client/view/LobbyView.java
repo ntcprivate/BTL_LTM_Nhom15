@@ -72,7 +72,7 @@ public class LobbyView extends VBox {
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
         ArtworkCard painting = new ArtworkCard(
                 "/images/Almond-Blossoms-1890.jpg", "Almond Blossoms • 1890", 300, 92);
-        HBox header = new HBox(16, heading, headerSpacer, painting);
+        HBox header = new HBox(16, heading, headerSpacer, Sounds.toggleButton(), painting);
         header.setAlignment(Pos.CENTER_LEFT);
         players.setHgap(14);
         players.setVgap(14);
@@ -239,6 +239,7 @@ public class LobbyView extends VBox {
         countdownTitle.setText(countdownLeft > 0 ? "Trận đấu bắt đầu sau " + countdownLeft + " giây" : "Đang vào trận...");
         countdownBar.setAccessibleText(countdownTitle.getText());
         if (countdownLeft == 0) { notReadyButton.setDisable(true); }
+        else { Sounds.play(Sounds.Effect.TICK); }
         if (!UiTheme.reducedMotion()) {
             ScaleTransition pulse = new ScaleTransition(Duration.millis(220), countdownNumber);
             pulse.setFromX(1.18);

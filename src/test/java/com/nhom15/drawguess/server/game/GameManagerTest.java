@@ -267,6 +267,44 @@ class GameManagerTest {
     }
 
     @Test
+    void drawerRankingUsesCorrectGuessesThenReportsThenHowFastTheDrawingWasGuessed() throws Exception {
+        try (Fixture f = new Fixture()) {
+            f.startGuessing();
+            // Tranh người 1: cả ba đoán trúng, trung bình 4 giây.
+            f.guess(2, "con mèo", 2);
+            f.guess(3, "con mèo", 4);
+            f.guess(4, "con mèo", 6);
+            f.advance(3);
+            f.roundStarted = f.clock.get();
+            // Tranh người 2: cả ba đoán trúng, nhanh hơn (trung bình 2 giây).
+            f.guess(1, "con chó", 1);
+            f.guess(3, "con chó", 2);
+            f.guess(4, "con chó", 3);
+            f.advance(3);
+            f.roundStarted = f.clock.get();
+            // Tranh người 3 bị báo cáo: lượt đoán trúng trên tranh đó không được tính cho người vẽ.
+            f.report(2, 2);
+            f.report(4, 2);
+            f.guess(1, "con voi", 1);
+            f.advance(3);
+            f.roundStarted = f.clock.get();
+            // Tranh người 4: không ai đoán trúng.
+            f.advance(30); f.advance(3);
+
+            GameResult result = assertInstanceOf(GameResult.class, f.last(1, MessageType.GAME_RESULT).getData());
+            List<DrawerEntry> drawers = result.getDrawers();
+            assertEquals(List.of(2, 1, 4, 3), drawers.stream().map(DrawerEntry::getUserId).toList());
+            assertEquals(List.of(1, 2, 3, 4), drawers.stream().map(DrawerEntry::getRank).toList());
+            assertEquals(List.of(3, 3, 0, 0), drawers.stream().map(DrawerEntry::getSolvedCount).toList());
+            assertEquals(2.0, drawers.get(0).getAverageSolveTime(), 1e-9);
+            assertEquals(4.0, drawers.get(1).getAverageSolveTime(), 1e-9);
+            assertEquals(Double.POSITIVE_INFINITY, drawers.get(2).getAverageSolveTime());
+            assertEquals(List.of(0, 0, 0, 1), drawers.stream().map(DrawerEntry::getRejectedCount).toList());
+            assertEquals(4, result.getPlayers().size(), "Bảng người đoán vẫn đầy đủ");
+        }
+    }
+
+    @Test
     void allOfflinePlayersFinishMatchWithoutWaitingForTimers() throws Exception {
         try (Fixture f = new Fixture()) {
             for (int id = 1; id <= 4; id++) { f.game.disconnect(1, id); }

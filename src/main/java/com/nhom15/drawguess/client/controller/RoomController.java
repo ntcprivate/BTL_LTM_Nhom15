@@ -7,6 +7,7 @@ import com.nhom15.drawguess.client.view.UiTheme;
 import com.nhom15.drawguess.client.view.HomeView;
 import com.nhom15.drawguess.client.view.AvatarPickerView;
 import com.nhom15.drawguess.client.view.InvitationPrompt;
+import com.nhom15.drawguess.client.view.Sounds;
 import com.nhom15.drawguess.common.protocol.*;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
@@ -80,6 +81,7 @@ public class RoomController {
         }
         // Đóng hộp thoại cũ (đã đóng thì không làm gì); hộp thoại cũ được tính là từ chối.
         if (invitationPrompt != null) { invitationPrompt.close(); }
+        Sounds.play(Sounds.Effect.INVITE);
         invitationPrompt = InvitationPrompt.show(root.getScene() == null ? null : root.getScene().getWindow(),
                 invitation, () -> acceptInvitation(invitation), () -> declineInvitation(invitation));
     }
@@ -262,6 +264,7 @@ public class RoomController {
             case CHAT_MESSAGE -> {
                 if (message.getData() instanceof ChatMessage chat && currentRoom != null) {
                     roomChat.add(chat);
+                    if (chat.getUserId() != user.getId()) { Sounds.play(Sounds.Effect.MESSAGE); }
                     if (roomChat.size() > CHAT_HISTORY) { roomChat.removeFirst(); }
                     lobby.addChat(chat);
                 }

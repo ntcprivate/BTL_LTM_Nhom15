@@ -8,7 +8,6 @@ import javafx.scene.Node;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
-import javafx.stage.Modality;
 import javafx.util.Duration;
 
 import java.util.function.Consumer;
@@ -30,7 +29,7 @@ final class OnlinePlayersDialog {
                 ThemedDialog.Tone.INFO, glyph, title, message,
                 new ButtonType("Đóng", ButtonBar.ButtonData.CANCEL_CLOSE));
         // Không chặn màn hình phía sau: vẫn bấm Sẵn sàng, chọn phòng... khi hộp thoại đang mở.
-        dialog.initModality(Modality.NONE);
+        ThemedDialog.asPanel(dialog);
         dialog.getDialogPane().setContent(panel);
         refresh = new Timeline(new KeyFrame(REFRESH, event -> request.run()));
         refresh.setCycleCount(Animation.INDEFINITE);

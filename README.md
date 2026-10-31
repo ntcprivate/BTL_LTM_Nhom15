@@ -22,6 +22,13 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
   - Khi thu gọn, khung chat chỉ hiện tin nhắn mới nhất và số tin chưa đọc.
   - Bấm biểu tượng chat để mở toàn bộ đoạn chat. Đoạn chat chiếm cả cột bên phải và có nút "Thu gọn".
   - Tin nhắn ở phòng chờ được chuyển sang khung chat của màn chơi.
+- **Âm thanh**:
+  - Có âm báo ngắn khi: đếm ngược vào trận, bắt đầu vẽ hoặc sang vòng mới, 5 giây cuối mỗi lượt, đoán đúng/sai, hết giờ, có kết quả trận, có tin nhắn của người khác và có lời mời.
+  - Nút loa ở trang chủ, danh sách phòng, phòng chờ và màn chơi dùng để tắt/bật tiếng. Lựa chọn được nhớ cho lần mở game sau.
+  - Âm báo do nhóm tự tạo bằng code (`src/main/resources/sounds`), không dùng nhạc có bản quyền.
+- **Hộp thông báo**:
+  - Bấm ra ngoài hộp thông báo, hoặc nhấn Esc, thì đóng hộp. Cách này giống bấm nút hủy/đóng; với lời mời thì tính là từ chối.
+  - Bấm ra ngoài danh sách người online thì đóng danh sách, và cú bấm vẫn có tác dụng ở màn hình phía sau.
 - **Giữ tranh khi mất kết nối lúc đang vẽ**:
   - Trong lúc vẽ, client gửi bản nháp tranh lên server mỗi 2 giây, nhưng chỉ khi có nét mới.
   - Người vào lại kịp sẽ thấy tranh dở và vẽ tiếp được.
@@ -33,6 +40,10 @@ Trò chơi vẽ và đoán từ bằng JavaFX, dùng TCP để kết nối clien
   - Người đã báo cáo thì không đoán tiếp tranh đó. Lượt kết thúc sớm khi mọi người đoán đều đã đoán đúng, hết 3 lần đoán, hoặc đã báo cáo.
 - **Điểm theo tốc độ**: đoán đúng trong 10 giây đầu được 3 điểm, 10 giây tiếp theo 2 điểm, sau đó 1 điểm; người đoán đúng đầu tiên được thêm 1 điểm; người vẽ được 1 điểm cho mỗi người đoán đúng.
 - **Trò chuyện** trong trận: khung chat bên trái ô vẽ (cửa sổ hẹp thì nằm trong thẻ "Trò chuyện" cạnh bảng điểm). Server chặn tin nhắn để lộ từ khóa chưa công bố (kể cả viết không dấu hoặc viết liền) và chặn gửi quá dồn dập.
+- Mỗi tin nhắn (trong trận và ở phòng chờ) hiện **giờ gửi** theo giờ máy người xem: `14:05` nếu là hôm nay, kèm ngày nếu là hôm khác.
+- **Màn kết quả có hai bảng xếp hạng** để chọn:
+  - **Người đoán**: xếp theo điểm; bằng điểm thì ai có thời gian đoán đúng trung bình (TB) ngắn hơn xếp trên. Mỗi người có hiện thời gian đoán đúng trung bình của mình.
+  - **Người vẽ**: xếp theo số lượt người khác đoán trúng tranh của mình, rồi ít tranh bị báo cáo hơn, rồi tranh được đoán ra nhanh hơn (TB). Lượt đoán trúng trên tranh bị báo cáo không được tính. Bảng này chỉ có ở màn kết quả, không lưu vào lịch sử.
 - **Chơi lại**: màn kết quả có nút **Chơi lại** (về phòng chờ và tự báo sẵn sàng) và dòng "2/3 người muốn chơi lại • Đang chờ: …". Cả phòng cùng bấm thì đếm ngược 5 giây rồi vào ván mới.
 - Lịch sử trận: thời gian, người tham gia, điểm, thứ hạng, từng vòng và các lượt đoán.
 - Xem ảnh từng vòng trong lịch sử; client tải ảnh từ server qua TCP.

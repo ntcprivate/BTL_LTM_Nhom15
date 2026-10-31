@@ -68,7 +68,7 @@ public class RoomListView extends VBox {
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
         ArtworkCard painting = new ArtworkCard(
                 "/images/Starry-Night-Over-the-Rhone-1888.jpg", "Starry Night Over the Rhône", 260, 86);
-        HBox header = new HBox(14, heading, headerSpacer, painting, userChip);
+        HBox header = new HBox(14, heading, headerSpacer, Sounds.toggleButton(), painting, userChip);
         header.setAlignment(Pos.CENTER_LEFT);
 
         HBox statistics = new HBox(12,
