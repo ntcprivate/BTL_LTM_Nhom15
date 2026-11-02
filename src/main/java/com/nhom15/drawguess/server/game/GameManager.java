@@ -609,7 +609,16 @@ public class GameManager implements AutoCloseable {
         if (player.online && player.sender != null) { player.sender.accept(new Message(type, data)); }
     }
     private void fail(Consumer<Message> reply, String reason) { reply.accept(new Message(MessageType.ACTION_FAILED, reason)); }
-    private static String normalize(String answer) { return answer.trim().toLowerCase(Locale.ROOT); }
+    private static String normalize(String answer) {
+            if (answer == null) {
+                return "";
+            }
+
+            return Normalizer.normalize(answer, Normalizer.Form.NFC)
+                    .toLowerCase(Locale.ROOT)
+                    .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                    .trim();
+        }
     private static long seconds(int value) { return TimeUnit.SECONDS.toNanos(value); }
 
     @Override
